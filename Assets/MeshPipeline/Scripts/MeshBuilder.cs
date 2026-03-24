@@ -7,6 +7,7 @@ public class MeshBuilder : MonoBehaviour
     public DrawingExtractor drawingExtractor;
     public ContourTracer contourTracer;
     public MeshExtruder meshExtruder;
+    public WeaponAnalyser weaponAnalyser;
 
     [Header("Test Input")]
     public Texture2D testTexture;
@@ -31,7 +32,22 @@ public class MeshBuilder : MonoBehaviour
         Debug.Log($"Binary texture size: {binary.width}x{binary.height}");
         Debug.Log($"Contour point count: {contour.Count}");
 
-        return meshExtruder.ExtrudeMesh(contour, inputTexture);
+        GameObject extrudedWeapon = meshExtruder.ExtrudeMesh(contour, inputTexture);
+
+        if (extrudedWeapon != null && weaponAnalyser != null)
+        {
+            WeaponStats stats = weaponAnalyser.AnalyseShape(contour);
+            
+            // Add attributes to object
+            WeaponAttributes attributes = extrudedWeapon.AddComponent<WeaponAttributes>();
+            attributes.Slashing = stats.Slashing;
+            attributes.Piercing = stats.Piercing;
+            attributes.Bluntness = stats.Bluntness;
+
+            Debug.Log($"Weapon Attributes --> S: {stats.Slashing*100:F1}%, P: {stats.Piercing*100:F1}%, B: {stats.Bluntness*100:F1}%");
+        }
+
+        return extrudedWeapon;
     }
 
     [ContextMenu("Test Build")]
@@ -43,7 +59,7 @@ public class MeshBuilder : MonoBehaviour
 
     private bool HasRequiredComponents()
     {
-        if (drawingExtractor == null || contourTracer == null || meshExtruder == null)
+        if (drawingExtractor == null || contourTracer == null || meshExtruder == null || weaponAnalyser == null)
         {
             Debug.LogError("MeshBuilder is missing one or more pipeline component references.");
             return false;
