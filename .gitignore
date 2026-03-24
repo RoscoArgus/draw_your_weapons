@@ -1,0 +1,12 @@
+/Unity/Library/
+/Unity/Temp/
+/Unity/Obj/
+/Unity/Build/
+/Unity/Builds/
+/Unity/Logs/
+/Unity/UserSettings/
+/.vs
+*.csproj
+*.sln
+.DS_Store
+Thumbs.db
