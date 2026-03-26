@@ -9,6 +9,10 @@ public class MeshBuilder : MonoBehaviour
     public MeshExtruder meshExtruder;
     public WeaponAnalyser weaponAnalyser;
 
+    [Header("Meshy Integration")]
+    public MeshyClient meshyClient;
+    public MeshyCache meshyCache;
+
     [Header("Test Input")]
     public Texture2D testTexture;
 
@@ -23,7 +27,6 @@ public class MeshBuilder : MonoBehaviour
         if (!HasRequiredComponents())
             return null;
 
-        // Extract, trace, and cleanup polygons in drawing before extrusion
         Texture2D binary = drawingExtractor.ProcessImage(inputTexture);
         List<Vector2> contour = contourTracer.TraceContour(binary);
         contour = EnsureClockwise(contour);
@@ -37,17 +40,54 @@ public class MeshBuilder : MonoBehaviour
         if (extrudedWeapon != null && weaponAnalyser != null)
         {
             WeaponStats stats = weaponAnalyser.AnalyseShape(contour);
-            
-            // Add attributes to object
             WeaponAttributes attributes = extrudedWeapon.AddComponent<WeaponAttributes>();
             attributes.Slashing = stats.Slashing;
             attributes.Piercing = stats.Piercing;
             attributes.Bluntness = stats.Bluntness;
-
             Debug.Log($"Weapon Attributes --> S: {stats.Slashing*100:F1}%, P: {stats.Piercing*100:F1}%, B: {stats.Bluntness*100:F1}%");
         }
 
+        if (meshyClient != null && meshyCache != null)
+        {
+            var capturedWeapon = extrudedWeapon;
+            meshyClient.GenerateFromTexture(
+                inputTexture,
+                meshyCache,
+                onComplete: meshyModel =>
+                {
+                    Debug.Log("[MeshBuilder] Meshy model ready — swapping geometry");
+                    SwapToMeshyModel(capturedWeapon, meshyModel);
+                },
+                onError: err => Debug.LogWarning($"[MeshBuilder] Meshy generation failed, keeping extruded mesh. Reason: {err}")
+            );
+        }
+
         return extrudedWeapon;
+    }
+
+    /// <summary>
+    /// Replaces the extruded mesh with the Meshy-generated one, preserving
+    /// WeaponAttributes and world transform.
+    /// </summary>
+    private void SwapToMeshyModel(GameObject extruded, GameObject meshyModel)
+    {
+        if (extruded == null || meshyModel == null) return;
+
+        meshyModel.transform.SetPositionAndRotation(
+            extruded.transform.position,
+            extruded.transform.rotation);
+        meshyModel.transform.localScale = extruded.transform.localScale;
+
+        var src = extruded.GetComponent<WeaponAttributes>();
+        if (src != null)
+        {
+            var dst = meshyModel.AddComponent<WeaponAttributes>();
+            dst.Slashing  = src.Slashing;
+            dst.Piercing  = src.Piercing;
+            dst.Bluntness = src.Bluntness;
+        }
+
+        Destroy(extruded);
     }
 
     [ContextMenu("Test Build")]
@@ -64,7 +104,6 @@ public class MeshBuilder : MonoBehaviour
             Debug.LogError("MeshBuilder is missing one or more pipeline component references.");
             return false;
         }
-
         return true;
     }
 
@@ -72,25 +111,20 @@ public class MeshBuilder : MonoBehaviour
     {
         if (contour == null || contour.Count < 3)
             return contour;
-
-        // Triangulation expects consistent winding order
         if (CalculateSignedArea(contour) > 0f)
             contour.Reverse();
-
         return contour;
     }
 
     private float CalculateSignedArea(List<Vector2> contour)
     {
         float signedArea = 0f;
-
         for (int i = 0; i < contour.Count; i++)
         {
             int next = (i + 1) % contour.Count;
             signedArea += contour[i].x * contour[next].y;
             signedArea -= contour[next].x * contour[i].y;
         }
-
         return signedArea;
     }
 
@@ -101,12 +135,9 @@ public class MeshBuilder : MonoBehaviour
 
         bool changed = true;
         int remainingPasses = 10;
-
-        // Trim looped segments out of the contour so the polygon remains valid for extrusion
         while (changed && remainingPasses-- > 0)
         {
             changed = false;
-
             for (int i = 0; i < contour.Count; i++)
             {
                 for (int j = i + 2; j < contour.Count; j++)
@@ -121,12 +152,10 @@ public class MeshBuilder : MonoBehaviour
 
                     if (!EdgesIntersect(a1, a2, b1, b2))
                         continue;
-
                     contour.RemoveRange(i + 1, j - i);
                     changed = true;
                     break;
                 }
-
                 if (changed)
                     break;
             }
@@ -142,11 +171,9 @@ public class MeshBuilder : MonoBehaviour
         float d1y = a2.y - a1.y;
         float d2x = b2.x - b1.x;
         float d2y = b2.y - b1.y;
-
         float cross = d1x * d2y - d1y * d2x;
         if (Mathf.Abs(cross) < 1e-10f)
             return false;
-
         float t = ((b1.x - a1.x) * d2y - (b1.y - a1.y) * d2x) / cross;
         float u = ((b1.x - a1.x) * d1y - (b1.y - a1.y) * d1x) / cross;
         return t > 0.001f && t < 0.999f && u > 0.001f && u < 0.999f;
