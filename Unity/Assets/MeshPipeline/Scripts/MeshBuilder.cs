@@ -55,8 +55,20 @@ public class MeshBuilder : MonoBehaviour
                 meshyCache,
                 onComplete: meshyModel =>
                 {
-                    Debug.Log("[MeshBuilder] Meshy model ready — swapping geometry");
-                    SwapToMeshyModel(capturedWeapon, meshyModel);
+                    if (capturedWeapon == null)
+                    {
+                        Debug.LogWarning("[MeshBuilder] Extruded weapon no longer exists; discarding Meshy model.");
+                        if (meshyModel != null)
+                            Destroy(meshyModel);
+                        return;
+                    }
+
+                    var pendingUpgrade = capturedWeapon.GetComponent<PendingMeshyUpgrade>();
+                    if (pendingUpgrade == null)
+                        pendingUpgrade = capturedWeapon.AddComponent<PendingMeshyUpgrade>();
+
+                    pendingUpgrade.SetPendingUpgrade(this, meshyModel, new Color(0.6f, 0.1f, 1f, 1f));
+                    Debug.Log("[MeshBuilder] Meshy model ready. Use the weapon context menu to upgrade.");
                 },
                 onError: err => Debug.LogWarning($"[MeshBuilder] Meshy generation failed, keeping extruded mesh. Reason: {err}")
             );
@@ -69,6 +81,11 @@ public class MeshBuilder : MonoBehaviour
     /// Replaces the extruded mesh with the Meshy-generated one, preserving
     /// WeaponAttributes and world transform.
     /// </summary>
+    public void UpgradeToMeshyModel(GameObject extruded, GameObject meshyModel)
+    {
+        SwapToMeshyModel(extruded, meshyModel);
+    }
+
     private void SwapToMeshyModel(GameObject extruded, GameObject meshyModel)
     {
         if (extruded == null || meshyModel == null) return;
@@ -76,7 +93,20 @@ public class MeshBuilder : MonoBehaviour
         meshyModel.transform.SetPositionAndRotation(
             extruded.transform.position,
             extruded.transform.rotation);
-        meshyModel.transform.localScale = extruded.transform.localScale;
+
+        // Calculate height of both models to match scale
+        float extrudedHeight = GetModelHeight(extruded);
+        float meshyHeight = GetModelHeight(meshyModel);
+
+        if (meshyHeight > 0.01f)
+        {
+            float heightRatio = extrudedHeight / meshyHeight;
+            meshyModel.transform.localScale = Vector3.one * heightRatio;
+        }
+        else
+        {
+            meshyModel.transform.localScale = extruded.transform.localScale;
+        }
 
         var src = extruded.GetComponent<WeaponAttributes>();
         if (src != null)
@@ -87,7 +117,37 @@ public class MeshBuilder : MonoBehaviour
             dst.Bluntness = src.Bluntness;
         }
 
+        meshyModel.SetActive(true);
+        extruded.SetActive(false);
         Destroy(extruded);
+    }
+
+    private float GetModelHeight(GameObject model)
+    {
+        Bounds bounds = new Bounds();
+        bool foundRenderer = false;
+
+        foreach (var renderer in model.GetComponentsInChildren<Renderer>())
+        {
+            if (!foundRenderer)
+            {
+                bounds = renderer.bounds;
+                foundRenderer = true;
+            }
+            else
+            {
+                bounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        // Use the largest dimension of the bounding box for orientation-independent scaling
+        if (foundRenderer)
+        {
+            Vector3 size = bounds.size;
+            return Mathf.Max(size.x, size.y, size.z);
+        }
+
+        return 1f;
     }
 
     [ContextMenu("Test Build")]
