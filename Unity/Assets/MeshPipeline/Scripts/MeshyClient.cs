@@ -54,7 +54,7 @@ public class MeshyClient : MonoBehaviour
             image_url = dataUri,
             should_texture = shouldTexture,
             ai_model = "meshy-6",
-            texture_prompt = shouldTexture ? "a melee weapon, game-ready, realistic materials and textures" : null
+            texture_prompt = shouldTexture ? "A melee weapon, game-ready, realistic materials and textures. Should reflect the textures of real-world weapons." : null
         });
 
         using var post = new UnityWebRequest(BaseUrl, "POST");
@@ -79,7 +79,7 @@ public class MeshyClient : MonoBehaviour
 
         cache.Store(hash, taskId, tex.name);
 
-        yield return PollAndLoad(taskId, onComplete, onError);
+        StartCoroutine(PollAndLoad(taskId, onComplete, onError));
     }
 
     private IEnumerator PollAndLoad(
