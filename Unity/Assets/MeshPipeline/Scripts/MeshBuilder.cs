@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
+
+using Debug = UnityEngine.Debug;
 
 public class MeshBuilder : MonoBehaviour
 {
@@ -36,6 +39,8 @@ public class MeshBuilder : MonoBehaviour
         Debug.Log($"Contour point count: {contour.Count}");
 
         GameObject extrudedWeapon = meshExtruder.ExtrudeMesh(contour, inputTexture);
+
+        if (extrudedWeapon != null) MakeInteractable(extrudedWeapon);
 
         if (extrudedWeapon != null && weaponAnalyser != null)
         {
@@ -120,6 +125,8 @@ public class MeshBuilder : MonoBehaviour
         meshyModel.SetActive(true);
         extruded.SetActive(false);
         Destroy(extruded);
+
+        MakeInteractable(meshyModel);
     }
 
     private float GetModelHeight(GameObject model)
@@ -237,5 +244,24 @@ public class MeshBuilder : MonoBehaviour
         float t = ((b1.x - a1.x) * d2y - (b1.y - a1.y) * d2x) / cross;
         float u = ((b1.x - a1.x) * d1y - (b1.y - a1.y) * d1x) / cross;
         return t > 0.001f && t < 0.999f && u > 0.001f && u < 0.999f;
+    }
+
+    private void MakeInteractable(GameObject obj)
+    {
+        Mesh mesh = null;
+        var filter = obj.GetComponent<MeshFilter>();
+        if (filter == null)
+            filter = obj.GetComponentInChildren<MeshFilter>();
+        if (filter != null)
+            mesh = filter.sharedMesh;
+
+        if (mesh == null)
+        {
+            Debug.LogWarning("[MeshBuilder] MakeInteractable: no MeshFilter found, skipping.");
+            return;
+        }
+
+        var interaction = obj.AddComponent<MeshInteraction>();
+        interaction.Initialise(mesh);
     }
 }
