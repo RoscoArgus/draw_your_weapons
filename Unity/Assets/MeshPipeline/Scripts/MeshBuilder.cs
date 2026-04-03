@@ -250,10 +250,8 @@ public class MeshBuilder : MonoBehaviour
     {
         Mesh mesh = null;
         var filter = obj.GetComponent<MeshFilter>();
-        if (filter == null)
-            filter = obj.GetComponentInChildren<MeshFilter>();
-        if (filter != null)
-            mesh = filter.sharedMesh;
+        if (filter == null) filter = obj.GetComponentInChildren<MeshFilter>();
+        if (filter != null) mesh = filter.sharedMesh;
 
         if (mesh == null)
         {
@@ -263,5 +261,12 @@ public class MeshBuilder : MonoBehaviour
 
         var interaction = obj.AddComponent<MeshInteraction>();
         interaction.Initialise(mesh);
+
+        var hitCollider = obj.AddComponent<MeshCollider>();
+        hitCollider.sharedMesh = mesh;
+        hitCollider.convex = true;
+        hitCollider.isTrigger = true;
+
+        obj.AddComponent<WeaponDamageDealer>();
     }
 }
