@@ -59,6 +59,14 @@ public class MeshyCache : ScriptableObject
         Save();
     }
 
+    public bool Remove(string hash)
+    {
+        bool removed = _entries.Remove(hash);
+        if (removed)
+            Save();
+        return removed;
+    }
+
     [ContextMenu("List Cache Entries")]
     public void ListCacheEntries()
     {

@@ -7,6 +7,8 @@ using UnityEngine.Networking;
 
 public class MeshyClient : MonoBehaviour
 {
+    private const string TaskNotFoundErrorPrefix = "TASK_NOT_FOUND:";
+
     [Header("Meshy Settings")]
     public PipelineSecrets secrets;
     private string apiKey => secrets.meshyApiKey;
@@ -30,12 +32,39 @@ public class MeshyClient : MonoBehaviour
         if (cache.TryGet(hash, out string cachedTaskId))
         {
             Debug.Log($"[MeshyClient] Cache hit for hash {hash}, reusing task {cachedTaskId}");
-            StartCoroutine(PollAndLoad(cachedTaskId, onComplete, onError));
+            StartCoroutine(PollCachedTaskOrResubmit(inputTexture, hash, cache, cachedTaskId, onComplete, onError));
         }
         else
         {
             StartCoroutine(SubmitAndPoll(inputTexture, hash, cache, onComplete, onError));
         }
+    }
+
+    private IEnumerator PollCachedTaskOrResubmit(
+        Texture2D inputTexture,
+        string hash,
+        MeshyCache cache,
+        string cachedTaskId,
+        Action<GameObject> onComplete,
+        Action<string> onError)
+    {
+        string pollError = null;
+        yield return PollAndLoad(
+            cachedTaskId,
+            onComplete,
+            err => pollError = err,
+            failOnNotFound: true);
+
+        if (!IsTaskNotFoundError(pollError))
+        {
+            if (!string.IsNullOrEmpty(pollError))
+                onError?.Invoke(pollError);
+            yield break;
+        }
+
+        Debug.LogWarning($"[MeshyClient] Cached task {cachedTaskId} returned 404. Removing stale cache entry and submitting a new task.");
+        cache.Remove(hash);
+        yield return SubmitAndPoll(inputTexture, hash, cache, onComplete, onError);
     }
 
     private IEnumerator SubmitAndPoll(
@@ -100,15 +129,18 @@ public class MeshyClient : MonoBehaviour
     private IEnumerator PollAndLoad(
         string taskId,
         Action<GameObject> onComplete,
-        Action<string> onError)
+        Action<string> onError,
+        bool failOnNotFound = false)
     {
-        Debug.Log($"[MeshyClient] Starting poll for task {taskId}");
+        float intervalSeconds = GetSafePollIntervalSeconds();
+        Debug.Log($"[MeshyClient] Starting poll for task {taskId} (interval={intervalSeconds:F2}s, timeScale={Time.timeScale:F2})");
         string url = $"{BaseUrl}/{taskId}";
+        int attempt = 0;
 
         while (true)
         {
-            yield return new WaitForSeconds(pollInterval);
-            Debug.Log($"[MeshyClient] Polling task {taskId}...");
+            attempt++;
+            Debug.Log($"[MeshyClient] Polling task {taskId} (attempt {attempt})...");
 
             using var get = UnityWebRequest.Get(url);
             get.SetRequestHeader("Authorization", $"Bearer {apiKey}");
@@ -119,11 +151,27 @@ public class MeshyClient : MonoBehaviour
 
             if (get.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogWarning($"[MeshyClient] Poll error: {get.error}");
+                if (failOnNotFound && get.responseCode == 404)
+                {
+                    string err = $"{TaskNotFoundErrorPrefix}{taskId}";
+                    Debug.LogWarning($"[MeshyClient] Task {taskId} was not found (404).");
+                    onError?.Invoke(err);
+                    yield break;
+                }
+
+                Debug.LogWarning($"[MeshyClient] Poll error: {get.error}. Body: {get.downloadHandler?.text}");
+                yield return new WaitForSecondsRealtime(intervalSeconds);
                 continue;
             }
 
             var task = JsonUtility.FromJson<TaskStatusResponse>(get.downloadHandler.text);
+            if (task == null || string.IsNullOrEmpty(task.status))
+            {
+                Debug.LogWarning($"[MeshyClient] Poll response could not be parsed for task {taskId}. Body: {get.downloadHandler.text}");
+                yield return new WaitForSecondsRealtime(intervalSeconds);
+                continue;
+            }
+
             Debug.Log($"[MeshyClient] Task {taskId} — {task.status} ({task.progress}%)");
 
             if (task.status == "SUCCEEDED")
@@ -139,7 +187,22 @@ public class MeshyClient : MonoBehaviour
                 onError?.Invoke(err);
                 yield break;
             }
+
+            yield return new WaitForSecondsRealtime(intervalSeconds);
         }
+    }
+
+    private bool IsTaskNotFoundError(string error)
+    {
+        return !string.IsNullOrEmpty(error) &&
+               error.StartsWith(TaskNotFoundErrorPrefix, StringComparison.Ordinal);
+    }
+
+    private float GetSafePollIntervalSeconds()
+    {
+        if (float.IsNaN(pollInterval) || float.IsInfinity(pollInterval) || pollInterval < 0.1f)
+            return 0.1f;
+        return pollInterval;
     }
 
     private IEnumerator DownloadAndInstantiate(
