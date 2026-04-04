@@ -16,6 +16,11 @@ public class MeshBuilder : MonoBehaviour
     public MeshyClient meshyClient;
     public MeshyCache meshyCache;
 
+    [Header("Spawn Placement")]
+    public Transform spawnViewTransform;
+    [Min(0.1f)] public float spawnDistance = 0.8f;
+    public float spawnVerticalOffset = -0.08f;
+
     [Header("Test Input")]
     public Texture2D testTexture;
 
@@ -40,7 +45,11 @@ public class MeshBuilder : MonoBehaviour
 
         GameObject extrudedWeapon = meshExtruder.ExtrudeMesh(contour, inputTexture);
 
-        if (extrudedWeapon != null) MakeInteractable(extrudedWeapon);
+        if (extrudedWeapon != null)
+        {
+            PlaceInFrontOfView(extrudedWeapon);
+            MakeInteractable(extrudedWeapon);
+        }
 
         if (extrudedWeapon != null && weaponAnalyser != null)
         {
@@ -268,5 +277,33 @@ public class MeshBuilder : MonoBehaviour
         hitCollider.isTrigger = true;
 
         obj.AddComponent<WeaponDamageDealer>();
+    }
+
+    private void PlaceInFrontOfView(GameObject weapon)
+    {
+        if (weapon == null)
+            return;
+
+        Transform view = ResolveSpawnViewTransform();
+        Vector3 forward = view.forward;
+        if (forward.sqrMagnitude < 0.0001f)
+            forward = Vector3.forward;
+
+        float distance = Mathf.Max(0.1f, spawnDistance);
+        Vector3 position = view.position + forward.normalized * distance + view.up * spawnVerticalOffset;
+        Quaternion rotation = Quaternion.LookRotation(forward.normalized, view.up);
+
+        weapon.transform.SetPositionAndRotation(position, rotation);
+    }
+
+    private Transform ResolveSpawnViewTransform()
+    {
+        if (spawnViewTransform != null)
+            return spawnViewTransform;
+
+        if (Camera.main != null)
+            return Camera.main.transform;
+
+        return transform;
     }
 }
