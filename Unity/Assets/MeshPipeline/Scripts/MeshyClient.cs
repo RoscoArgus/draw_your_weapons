@@ -74,12 +74,27 @@ public class MeshyClient : MonoBehaviour
         }
 
         var response = JsonUtility.FromJson<TaskCreatedResponse>(post.downloadHandler.text);
-        string taskId = response.result;
+        string taskId = response?.result;
+        if (string.IsNullOrWhiteSpace(taskId))
+        {
+            string err = $"[MeshyClient] POST succeeded but response did not include a valid task id. Body: {post.downloadHandler.text}";
+            Debug.LogError(err);
+            onError?.Invoke(err);
+            yield break;
+        }
+
         Debug.Log($"[MeshyClient] Task created: {taskId}");
 
-        cache.Store(hash, taskId, tex.name);
+        try
+        {
+            cache.Store(hash, taskId, tex.name);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[MeshyClient] Failed to store cache for task {taskId}: {e.Message}");
+        }
 
-        StartCoroutine(PollAndLoad(taskId, onComplete, onError));
+        yield return PollAndLoad(taskId, onComplete, onError);
     }
 
     private IEnumerator PollAndLoad(
