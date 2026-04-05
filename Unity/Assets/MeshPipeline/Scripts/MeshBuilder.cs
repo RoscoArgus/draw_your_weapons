@@ -16,6 +16,10 @@ public class MeshBuilder : MonoBehaviour
     public MeshyClient meshyClient;
     public MeshyCache meshyCache;
 
+    [Header("Audio")]
+    public AudioClip swingClip;
+    public AudioSource sceneAudioSource;
+    
     [Header("Spawn Placement")]
     public Transform spawnViewTransform;
     [Min(0.1f)] public float spawnDistance = 0.8f;
@@ -45,12 +49,6 @@ public class MeshBuilder : MonoBehaviour
 
         GameObject extrudedWeapon = meshExtruder.ExtrudeMesh(contour, inputTexture);
 
-        if (extrudedWeapon != null)
-        {
-            PlaceInFrontOfView(extrudedWeapon);
-            MakeInteractable(extrudedWeapon);
-        }
-
         if (extrudedWeapon != null && weaponAnalyser != null)
         {
             WeaponStats stats = weaponAnalyser.AnalyseShape(contour);
@@ -59,6 +57,12 @@ public class MeshBuilder : MonoBehaviour
             attributes.Piercing = stats.Piercing;
             attributes.Bluntness = stats.Bluntness;
             Debug.Log($"Weapon Attributes --> S: {stats.Slashing*100:F1}%, P: {stats.Piercing*100:F1}%, B: {stats.Bluntness*100:F1}%");
+        }
+
+        if (extrudedWeapon != null)
+        {
+            PlaceInFrontOfView(extrudedWeapon);
+            MakeInteractable(extrudedWeapon);
         }
 
         if (meshyClient != null && meshyCache != null)
@@ -269,6 +273,8 @@ public class MeshBuilder : MonoBehaviour
         }
 
         var interaction = obj.AddComponent<MeshInteraction>();
+        interaction.swingClip = swingClip;
+        interaction.audioSource = sceneAudioSource;
         interaction.Initialise(mesh);
 
         var hitCollider = obj.AddComponent<MeshCollider>();
