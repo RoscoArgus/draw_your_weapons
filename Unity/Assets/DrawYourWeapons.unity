@@ -1494,6 +1494,9 @@ MonoBehaviour:
   meshyCache: {fileID: 11400000, guid: 3ea9450cf573ba642a44e09756c6895f, type: 2}
   swingClip: {fileID: 8300000, guid: 38eb4a00062d780408c6391b5f5ca3d1, type: 3}
   sceneAudioSource: {fileID: 76873235}
+  spawnViewTransform: {fileID: 0}
+  spawnDistance: 0.8
+  spawnVerticalOffset: -0.08
   testTexture: {fileID: 0}
 --- !u!4 &712330292
 Transform:
@@ -1524,7 +1527,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MeshyClient
   secrets: {fileID: 0}
   pollInterval: 5
-  shouldTexture: 1
+  shouldTexture: 0
 --- !u!114 &712330295
 MonoBehaviour:
   m_ObjectHideFlags: 0
