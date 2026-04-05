@@ -50,6 +50,9 @@ public class EnemyHealth : MonoBehaviour
 
         Debug.Log($"{name} took {finalDamage:F1} damage. Remaining HP: {currentHealth:F1}");
 
+        var mover = GetComponent<EnemyMover>();
+        if (mover != null) mover.TriggerHitAnimation();
+
         if (currentHealth <= 0f)
             Die();
     }
