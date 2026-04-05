@@ -19,6 +19,11 @@ public class MeshBuilder : MonoBehaviour
     [Header("Audio")]
     public AudioClip swingClip;
     public AudioSource sceneAudioSource;
+    
+    [Header("Spawn Placement")]
+    public Transform spawnViewTransform;
+    [Min(0.1f)] public float spawnDistance = 0.8f;
+    public float spawnVerticalOffset = -0.08f;
 
     [Header("Test Input")]
     public Texture2D testTexture;
@@ -54,7 +59,11 @@ public class MeshBuilder : MonoBehaviour
             Debug.Log($"Weapon Attributes --> S: {stats.Slashing*100:F1}%, P: {stats.Piercing*100:F1}%, B: {stats.Bluntness*100:F1}%");
         }
 
-        if (extrudedWeapon != null) MakeInteractable(extrudedWeapon);
+        if (extrudedWeapon != null)
+        {
+            PlaceInFrontOfView(extrudedWeapon);
+            MakeInteractable(extrudedWeapon);
+        }
 
         if (meshyClient != null && meshyCache != null)
         {
@@ -274,5 +283,33 @@ public class MeshBuilder : MonoBehaviour
         hitCollider.isTrigger = true;
 
         obj.AddComponent<WeaponDamageDealer>();
+    }
+
+    private void PlaceInFrontOfView(GameObject weapon)
+    {
+        if (weapon == null)
+            return;
+
+        Transform view = ResolveSpawnViewTransform();
+        Vector3 forward = view.forward;
+        if (forward.sqrMagnitude < 0.0001f)
+            forward = Vector3.forward;
+
+        float distance = Mathf.Max(0.1f, spawnDistance);
+        Vector3 position = view.position + forward.normalized * distance + view.up * spawnVerticalOffset;
+        Quaternion rotation = Quaternion.LookRotation(forward.normalized, view.up);
+
+        weapon.transform.SetPositionAndRotation(position, rotation);
+    }
+
+    private Transform ResolveSpawnViewTransform()
+    {
+        if (spawnViewTransform != null)
+            return spawnViewTransform;
+
+        if (Camera.main != null)
+            return Camera.main.transform;
+
+        return transform;
     }
 }
