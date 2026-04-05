@@ -8,16 +8,21 @@ public class MeshInteraction : MonoBehaviour
     public float mass = 0.5f;
     public float drag = 0.5f;
 
+    [Header("Audio")]
+    public AudioClip swingClip;
+    public AudioSource audioSource;
+    public float swingVelocityThreshold = 1.5f;
+
     public bool IsHeld => _holdingController != OVRInput.Controller.None;
     public bool IsBeingAttracted { get; private set; }
 
     private Rigidbody _rb;
     private MeshCollider _col;
-
     private OVRInput.Controller _holdingController = OVRInput.Controller.None;
-
     private Vector3 _localGrabOffset;
     private Quaternion _localGrabRotation;
+    private Vector3 _lastControllerPos;
+    private float _swingCooldown;
 
     public void Initialise(Mesh mesh)
     {
@@ -53,6 +58,7 @@ public class MeshInteraction : MonoBehaviour
         Quaternion controllerRot = OVRInput.GetLocalControllerRotation(controller);
         _localGrabOffset = Quaternion.Inverse(controllerRot) * (transform.position - controllerPos);
         _localGrabRotation = Quaternion.Inverse(controllerRot) * transform.rotation;
+        _lastControllerPos = controllerPos;
     }
 
     public void ReleaseAttract()
@@ -78,6 +84,17 @@ public class MeshInteraction : MonoBehaviour
         Quaternion controllerRot = OVRInput.GetLocalControllerRotation(_holdingController);
         transform.position = controllerPos + controllerRot * _localGrabOffset;
         transform.rotation = controllerRot * _localGrabRotation;
+
+        float speed = (controllerPos - _lastControllerPos).magnitude / Time.deltaTime;
+        _lastControllerPos = controllerPos;
+        _swingCooldown -= Time.deltaTime;
+
+        if (speed > swingVelocityThreshold && _swingCooldown <= 0f
+            && swingClip != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(swingClip);
+            _swingCooldown = 0.2f;
+        }
     }
 
     private void Release()
@@ -88,7 +105,6 @@ public class MeshInteraction : MonoBehaviour
 
         _rb.isKinematic = false;
         _rb.useGravity = true;
-
         _rb.linearVelocity = OVRInput.GetLocalControllerVelocity(released);
         _rb.angularVelocity = OVRInput.GetLocalControllerAngularVelocity(released);
     }

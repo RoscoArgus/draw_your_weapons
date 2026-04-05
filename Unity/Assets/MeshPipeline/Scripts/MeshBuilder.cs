@@ -16,6 +16,10 @@ public class MeshBuilder : MonoBehaviour
     public MeshyClient meshyClient;
     public MeshyCache meshyCache;
 
+    [Header("Audio")]
+    public AudioClip swingClip;
+    public AudioSource sceneAudioSource;
+
     [Header("Test Input")]
     public Texture2D testTexture;
 
@@ -40,8 +44,6 @@ public class MeshBuilder : MonoBehaviour
 
         GameObject extrudedWeapon = meshExtruder.ExtrudeMesh(contour, inputTexture);
 
-        if (extrudedWeapon != null) MakeInteractable(extrudedWeapon);
-
         if (extrudedWeapon != null && weaponAnalyser != null)
         {
             WeaponStats stats = weaponAnalyser.AnalyseShape(contour);
@@ -51,6 +53,8 @@ public class MeshBuilder : MonoBehaviour
             attributes.Bluntness = stats.Bluntness;
             Debug.Log($"Weapon Attributes --> S: {stats.Slashing*100:F1}%, P: {stats.Piercing*100:F1}%, B: {stats.Bluntness*100:F1}%");
         }
+
+        if (extrudedWeapon != null) MakeInteractable(extrudedWeapon);
 
         if (meshyClient != null && meshyCache != null)
         {
@@ -260,6 +264,8 @@ public class MeshBuilder : MonoBehaviour
         }
 
         var interaction = obj.AddComponent<MeshInteraction>();
+        interaction.swingClip = swingClip;
+        interaction.audioSource = sceneAudioSource;
         interaction.Initialise(mesh);
 
         var hitCollider = obj.AddComponent<MeshCollider>();
