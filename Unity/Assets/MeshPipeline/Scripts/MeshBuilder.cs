@@ -65,33 +65,6 @@ public class MeshBuilder : MonoBehaviour
             MakeInteractable(extrudedWeapon);
         }
 
-        if (meshyClient != null && meshyCache != null)
-        {
-            var capturedWeapon = extrudedWeapon;
-            meshyClient.GenerateFromTexture(
-                inputTexture,
-                meshyCache,
-                onComplete: meshyModel =>
-                {
-                    if (capturedWeapon == null)
-                    {
-                        Debug.LogWarning("[MeshBuilder] Extruded weapon no longer exists; discarding Meshy model.");
-                        if (meshyModel != null)
-                            Destroy(meshyModel);
-                        return;
-                    }
-
-                    var pendingUpgrade = capturedWeapon.GetComponent<PendingMeshyUpgrade>();
-                    if (pendingUpgrade == null)
-                        pendingUpgrade = capturedWeapon.AddComponent<PendingMeshyUpgrade>();
-
-                    pendingUpgrade.SetPendingUpgrade(this, meshyModel, new Color(0.6f, 0.1f, 1f, 1f));
-                    Debug.Log("[MeshBuilder] Meshy model ready. Use the weapon context menu to upgrade.");
-                },
-                onError: err => Debug.LogWarning($"[MeshBuilder] Meshy generation failed, keeping extruded mesh. Reason: {err}")
-            );
-        }
-
         return extrudedWeapon;
     }
 
@@ -99,9 +72,47 @@ public class MeshBuilder : MonoBehaviour
     /// Replaces the extruded mesh with the Meshy-generated one, preserving
     /// WeaponAttributes and world transform.
     /// </summary>
+    
+    bool meshyJob = false;
+
     public void UpgradeToMeshyModel(GameObject extruded, GameObject meshyModel)
     {
-        SwapToMeshyModel(extruded, meshyModel);
+
+        if (meshyJob) 
+        {
+            meshyJob = !meshyJob;
+            if (meshyClient != null && meshyCache != null)
+            {
+                Texture2D inputTexture = (Texture2D)extruded.GetComponent<MeshRenderer>().materials[0].mainTexture;
+                meshyClient.GenerateFromTexture(
+                    inputTexture,
+                    meshyCache,
+                    onComplete: meshyModel =>
+                    {
+                        if (extruded == null)
+                        {
+                            Debug.LogWarning("[MeshBuilder] Extruded weapon no longer exists; discarding Meshy model.");
+                            if (meshyModel != null)
+                                Destroy(meshyModel);
+                            return;
+                        }
+
+                        var pendingUpgrade = extruded.GetComponent<PendingMeshyUpgrade>();
+                        if (pendingUpgrade == null)
+                            pendingUpgrade = extruded.AddComponent<PendingMeshyUpgrade>();
+
+                        pendingUpgrade.SetPendingUpgrade(this, meshyModel, new Color(0.6f, 0.1f, 1f, 1f));
+                        Debug.Log("[MeshBuilder] Meshy model ready. Use the weapon context menu to upgrade.");
+                    },
+                    onError: err => Debug.LogWarning($"[MeshBuilder] Meshy generation failed, keeping extruded mesh. Reason: {err}")
+                );
+            }
+        } 
+        else 
+        {
+            meshyJob = !meshyJob;
+            SwapToMeshyModel(extruded, meshyModel);
+        }
     }
 
     private void SwapToMeshyModel(GameObject extruded, GameObject meshyModel)
