@@ -16,12 +16,14 @@ public class EnemyHealth : MonoBehaviour
 
     private float currentHealth;
     private bool isDead;
+    private EnemySfxPlayer enemySfxPlayer;
 
     public bool IsDead => isDead;
     public float CurrentHealth => currentHealth;
 
     private void Awake()
     {
+        enemySfxPlayer = GetComponent<EnemySfxPlayer>();
         currentHealth = maxHealth;
     }
 
@@ -50,11 +52,17 @@ public class EnemyHealth : MonoBehaviour
 
         Debug.Log($"{name} took {finalDamage:F1} damage. Remaining HP: {currentHealth:F1}");
 
+        if (currentHealth <= 0f)
+        {
+            Die();
+            return;
+        }
+
         var mover = GetComponent<EnemyMover>();
         if (mover != null) mover.TriggerHitAnimation();
 
-        if (currentHealth <= 0f)
-            Die();
+        if (enemySfxPlayer != null)
+            enemySfxPlayer.PlayRandomHitSound();
     }
 
     private float GetMatchedTypeValue(float slash, float pierce, float blunt)
@@ -83,6 +91,9 @@ public class EnemyHealth : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+
+        if (enemySfxPlayer != null)
+            enemySfxPlayer.PlayRandomDeathSound();
 
         WaveManager waveManager = FindObjectOfType<WaveManager>();
         if (waveManager != null)
