@@ -110,8 +110,13 @@ public class MeshBuilder : MonoBehaviour
         } 
         else 
         {
-            meshyJob = !meshyJob;
-            SwapToMeshyModel(extruded, meshyModel);
+            var pendingUpgrade = extruded.GetComponent<PendingMeshyUpgrade>();
+
+            if (pendingUpgrade.isUpgradeReady)
+            {
+                meshyJob = !meshyJob;
+                SwapToMeshyModel(extruded, meshyModel);
+            }
         }
     }
 
