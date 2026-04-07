@@ -3607,7 +3607,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MeshInteraction
   mass: 0.5
   drag: 0.5
-  swingClip: {fileID: 8300000, guid: 38eb4a00062d780408c6391b5f5ca3d1, type: 3}
+  swingClip: {fileID: 8300000, guid: d8d15f328807e31448ee80cb82649365, type: 3}
   audioSource: {fileID: 76873235}
   swingVelocityThreshold: 1.5
 --- !u!54 &5519495333704620557
