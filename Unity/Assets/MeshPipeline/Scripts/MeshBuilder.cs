@@ -56,73 +56,24 @@ public class MeshBuilder : MonoBehaviour
             attributes.Slashing = stats.Slashing;
             attributes.Piercing = stats.Piercing;
             attributes.Bluntness = stats.Bluntness;
-            Debug.Log($"Weapon Attributes --> S: {stats.Slashing*100:F1}%, P: {stats.Piercing*100:F1}%, B: {stats.Bluntness*100:F1}%");
         }
 
         if (extrudedWeapon != null)
         {
+            // Add PendingMeshyUpgrade — stores the texture for when the job is kicked off
+            var pendingUpgrade = extrudedWeapon.AddComponent<PendingMeshyUpgrade>();
+            pendingUpgrade.Initialise(this, inputTexture);
+
             PlaceInFrontOfView(extrudedWeapon);
             MakeInteractable(extrudedWeapon);
-
-            // Queue Meshy generation so PendingMeshyUpgrade can apply the emissive rim when ready.
-            UpgradeToMeshyModel(extrudedWeapon, null);
         }
 
         return extrudedWeapon;
     }
 
-    /// <summary>
-    /// Replaces the extruded mesh with the Meshy-generated one, preserving
-    /// WeaponAttributes and world transform.
-    /// </summary>
-    
     public void UpgradeToMeshyModel(GameObject extruded, GameObject meshyModel)
     {
-        if (extruded == null)
-        {
-            Debug.LogWarning("[MeshBuilder] Cannot upgrade: source weapon is null.");
-            return;
-        }
-
-        // If a Meshy model is already available, apply it immediately.
-        if (meshyModel != null)
-        {
-            SwapToMeshyModel(extruded, meshyModel);
-            return;
-        }
-
-        if (!CanQueueMeshyUpgrade())
-            return;
-
-        Texture2D inputTexture = GetWeaponTexture(extruded);
-        if (inputTexture == null)
-        {
-            Debug.LogWarning("[MeshBuilder] Cannot request Meshy upgrade: weapon has no Texture2D main texture.");
-            return;
-        }
-
-        meshyClient.GenerateFromTexture(
-            inputTexture,
-            meshyCache,
-            onComplete: generatedMeshyModel =>
-            {
-                if (extruded == null)
-                {
-                    Debug.LogWarning("[MeshBuilder] Extruded weapon no longer exists; discarding Meshy model.");
-                    if (generatedMeshyModel != null)
-                        Destroy(generatedMeshyModel);
-                    return;
-                }
-
-                var pendingUpgrade = extruded.GetComponent<PendingMeshyUpgrade>();
-                if (pendingUpgrade == null)
-                    pendingUpgrade = extruded.AddComponent<PendingMeshyUpgrade>();
-
-                pendingUpgrade.SetPendingUpgrade(this, generatedMeshyModel, new Color(0.6f, 0.1f, 1f, 1f));
-                Debug.Log("[MeshBuilder] Meshy model ready. Hold weapon and press A to upgrade.");
-            },
-            onError: err => Debug.LogWarning($"[MeshBuilder] Meshy generation failed, keeping extruded mesh. Reason: {err}")
-        );
+        SwapToMeshyModel(extruded, meshyModel);
     }
 
     private bool CanQueueMeshyUpgrade()

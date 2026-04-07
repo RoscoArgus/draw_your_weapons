@@ -24,6 +24,17 @@ public class MeshInteraction : MonoBehaviour
     private Vector3 _lastControllerPos;
     private float _swingCooldown;
 
+    private void Start()
+    {
+        if (_rb == null)
+        {
+            var filter = GetComponent<MeshFilter>();
+            if (filter == null) filter = GetComponentInChildren<MeshFilter>();
+            if (filter != null)
+                Initialise(filter.sharedMesh);
+        }
+    }
+
     public void Initialise(Mesh mesh)
     {
         _col = GetComponent<MeshCollider>();

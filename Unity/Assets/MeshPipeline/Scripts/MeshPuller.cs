@@ -12,7 +12,7 @@ public class MeshPuller : MonoBehaviour
 
     public float attractSpeed = 8f;
 
-    public float snapDistance = 0.15f;
+    public float snapDistance = 0.01f;
 
     public float rayDistance = 10f;
 
@@ -22,6 +22,8 @@ public class MeshPuller : MonoBehaviour
     private InputAction _releaseAction;
     private MeshInteraction _targetMesh;
     private Coroutine _attractRoutine;
+
+    private Vector3 _targetHitPoint;
 
     private void Awake()
     {
@@ -66,6 +68,8 @@ public class MeshPuller : MonoBehaviour
             TryUpgradeHeldMesh();
     }
 
+    private Vector3 _targetHitPointLocal; // local space, moves with mesh
+
     private void OnGripPressed(InputAction.CallbackContext ctx)
     {
         Ray ray = new Ray(transform.position, transform.forward);
@@ -76,11 +80,14 @@ public class MeshPuller : MonoBehaviour
             if (mesh != null && !mesh.IsHeld)
             {
                 _targetMesh = mesh;
+                // Store in local space so it moves with the mesh
+                _targetHitPointLocal = mesh.transform.InverseTransformPoint(hit.point);
                 if (_attractRoutine != null) StopCoroutine(_attractRoutine);
                 _attractRoutine = StartCoroutine(AttractMesh(_targetMesh));
             }
         }
     }
+
 
     private void OnGripReleased(InputAction.CallbackContext ctx)
     {
@@ -107,7 +114,11 @@ public class MeshPuller : MonoBehaviour
 
         while (mesh != null)
         {
-            float dist = Vector3.Distance(mesh.transform.position, transform.position);
+            Vector3 controllerPos = OVRInput.GetLocalControllerPosition(controller);
+
+            Vector3 hitPointWorld = mesh.transform.TransformPoint(_targetHitPointLocal);
+
+            float dist = Vector3.Distance(hitPointWorld, controllerPos);
 
             if (dist <= snapDistance)
             {
@@ -117,11 +128,8 @@ public class MeshPuller : MonoBehaviour
                 yield break;
             }
 
-            mesh.transform.position = Vector3.MoveTowards(
-                mesh.transform.position,
-                transform.position,
-                attractSpeed * Time.deltaTime
-            );
+            Vector3 moveDir = (controllerPos - hitPointWorld).normalized;
+            mesh.transform.position += moveDir * attractSpeed * Time.deltaTime;
 
             yield return null;
         }
@@ -139,18 +147,26 @@ public class MeshPuller : MonoBehaviour
         var upgrade = held.GetComponent<PendingMeshyUpgrade>();
         if (upgrade == null)
         {
-            Debug.Log("[MeshPuller] Held mesh has no pending upgrade.");
+            Debug.Log("[MeshPuller] Held mesh has no pending upgrade component.");
             return;
         }
 
-        if (!upgrade.IsUpgradeReady)
+        if (upgrade.IsUpgradeReady)
         {
-            Debug.Log("[MeshPuller] Meshy upgrade not ready yet — still generating.");
-            return;
+            // Second press — swap to Meshy mesh
+            upgrade.UpgradeToMeshyModel();
+            Debug.Log("[MeshPuller] Meshy upgrade applied.");
         }
-
-        upgrade.UpgradeToMeshyModel();
-        Debug.Log("[MeshPuller] Meshy upgrade applied.");
+        else if (!upgrade.IsJobStarted)
+        {
+            // First press — kick off Meshy job
+            upgrade.StartMeshyJob();
+            Debug.Log("[MeshPuller] Meshy job started.");
+        }
+        else
+        {
+            Debug.Log("[MeshPuller] Meshy job already in progress.");
+        }
     }
 
     private MeshInteraction FindHeldMesh()

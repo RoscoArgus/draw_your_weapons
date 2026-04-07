@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 
 public class PendingMeshyUpgrade : MonoBehaviour
 {
     [Header("Upgrade State")]
     [SerializeField] private bool isUpgradeReady;
+    [SerializeField] private bool isJobStarted;
 
     [Header("Ready Emissive Glow")]
     [SerializeField] private Color glowColor = new Color(0.6f, 0.1f, 1f, 1f);
@@ -13,9 +15,10 @@ public class PendingMeshyUpgrade : MonoBehaviour
     [SerializeField, Min(0f)] private float pulseSpeed = 2f;
     [SerializeField, Min(0f)] private float pulseAmount = 0.25f;
 
-    private MeshBuilder meshBuilder;
-    private GameObject pendingMeshyModel;
-    private readonly List<OverlayEntry> overlayEntries = new();
+    private MeshBuilder _meshBuilder;
+    private Texture2D _sourceTexture;
+    private GameObject _pendingMeshyModel;
+    private readonly List<OverlayEntry> _overlayEntries = new();
 
     private static readonly int RimColorId = Shader.PropertyToID("_RimColor");
     private static readonly int RimPowerId = Shader.PropertyToID("_RimPower");
@@ -28,47 +31,69 @@ public class PendingMeshyUpgrade : MonoBehaviour
         public Material OverlayMaterial;
     }
 
-    public bool IsUpgradeReady => isUpgradeReady && meshBuilder != null && pendingMeshyModel != null;
+    public bool IsUpgradeReady => isUpgradeReady && _meshBuilder != null && _pendingMeshyModel != null;
+    public bool IsJobStarted => isJobStarted;
 
-    public void SetPendingUpgrade(MeshBuilder builder, GameObject meshyModel, Color readyGlowColor)
+    // Called by MeshBuilder after extrusion
+    public void Initialise(MeshBuilder builder, Texture2D sourceTexture)
     {
-        meshBuilder = builder;
-        pendingMeshyModel = meshyModel;
-        glowColor = readyGlowColor;
-        isUpgradeReady = meshBuilder != null && pendingMeshyModel != null;
-
-        if (pendingMeshyModel != null)
-            pendingMeshyModel.SetActive(false);
-
-        if (isUpgradeReady)
-            ApplyReadyGlow();
+        _meshBuilder = builder;
+        _sourceTexture = sourceTexture;
     }
 
+    // Called by MeshPuller on first A press
+    public void StartMeshyJob()
+    {
+        if (isJobStarted) return;
+        if (_meshBuilder == null || _sourceTexture == null) return;
+
+        isJobStarted = true;
+
+        _meshBuilder.meshyClient.GenerateFromTexture(
+            _sourceTexture,
+            _meshBuilder.meshyCache,
+            onComplete: meshyModel =>
+            {
+                if (this == null || gameObject == null)
+                {
+                    if (meshyModel != null) Destroy(meshyModel);
+                    return;
+                }
+
+                _pendingMeshyModel = meshyModel;
+                _pendingMeshyModel.SetActive(false);
+                isUpgradeReady = true;
+
+                ApplyReadyGlow();
+            },
+            onError: err =>
+            {
+                isJobStarted = false; // allow retry
+            }
+        );
+    }
+
+    // Called by MeshPuller on second A press
     public void UpgradeToMeshyModel()
     {
-        if (!IsUpgradeReady)
-        {
-            Debug.LogWarning("[PendingMeshyUpgrade] Upgrade is not ready yet.", this);
-            return;
-        }
+        if (!IsUpgradeReady) return;
 
-        var meshyModel = pendingMeshyModel;
-        pendingMeshyModel = null;
+        var model = _pendingMeshyModel;
+        _pendingMeshyModel = null;
         isUpgradeReady = false;
         ClearReadyVisuals();
 
-        meshBuilder.UpgradeToMeshyModel(gameObject, meshyModel);
+        _meshBuilder.UpgradeToMeshyModel(gameObject, model);
     }
 
     private void Update()
     {
-        if (!isUpgradeReady || overlayEntries.Count == 0)
-            return;
+        if (!isUpgradeReady || _overlayEntries.Count == 0) return;
 
         float t = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
         float pulseStrength = glowIntensity * t;
-        for (int i = 0; i < overlayEntries.Count; i++)
-            ApplyOverlayMaterial(overlayEntries[i].OverlayMaterial, glowColor, pulseStrength);
+        for (int i = 0; i < _overlayEntries.Count; i++)
+            ApplyOverlayMaterial(_overlayEntries[i].OverlayMaterial, glowColor, pulseStrength);
     }
 
     private void ApplyReadyGlow()
@@ -78,86 +103,64 @@ public class PendingMeshyUpgrade : MonoBehaviour
         Shader overlayShader = Shader.Find("MeshPipeline/MeshyEmissiveRim");
         if (overlayShader == null)
         {
-            Debug.LogWarning("[PendingMeshyUpgrade] MeshPipeline/MeshyEmissiveRim shader not found for emissive glow effect.", this);
             return;
         }
 
-        var renderers = GetComponentsInChildren<Renderer>(true);
-        foreach (var renderer in renderers)
+        foreach (var renderer in GetComponentsInChildren<Renderer>(true))
         {
-            if (renderer == null)
-                continue;
-
+            if (renderer == null) continue;
             var baseMaterials = renderer.materials;
-            if (baseMaterials == null || baseMaterials.Length == 0)
-                continue;
+            if (baseMaterials == null || baseMaterials.Length == 0) continue;
 
-            var overlayMaterial = new Material(overlayShader)
-            {
-                name = "MeshyUpgradeEmissiveRimMat"
-            };
-            ApplyOverlayMaterial(overlayMaterial, glowColor, glowIntensity);
+            var overlayMat = new Material(overlayShader) { name = "MeshyUpgradeEmissiveRimMat" };
+            ApplyOverlayMaterial(overlayMat, glowColor, glowIntensity);
 
-            // Append overlay material to layered on top of base materials
             var materialsWithOverlay = new Material[baseMaterials.Length + 1];
             for (int i = 0; i < baseMaterials.Length; i++)
                 materialsWithOverlay[i] = baseMaterials[i];
-            materialsWithOverlay[baseMaterials.Length] = overlayMaterial;
-
+            materialsWithOverlay[baseMaterials.Length] = overlayMat;
             renderer.materials = materialsWithOverlay;
 
-            overlayEntries.Add(new OverlayEntry
+            _overlayEntries.Add(new OverlayEntry
             {
                 Renderer = renderer,
                 BaseMaterialCount = baseMaterials.Length,
-                OverlayMaterial = overlayMaterial
+                OverlayMaterial = overlayMat
             });
         }
     }
 
     private void ApplyOverlayMaterial(Material material, Color color, float strength)
     {
-        if (material == null)
-            return;
-
-        if (material.HasProperty(RimColorId))
-            material.SetColor(RimColorId, color);
-        if (material.HasProperty(RimPowerId))
-            material.SetFloat(RimPowerId, rimPower);
-        if (material.HasProperty(GlowStrengthId))
-            material.SetFloat(GlowStrengthId, strength);
+        if (material == null) return;
+        if (material.HasProperty(RimColorId)) material.SetColor(RimColorId, color);
+        if (material.HasProperty(RimPowerId)) material.SetFloat(RimPowerId, rimPower);
+        if (material.HasProperty(GlowStrengthId)) material.SetFloat(GlowStrengthId, strength);
     }
 
     private void ClearReadyVisuals()
     {
-        for (int i = 0; i < overlayEntries.Count; i++)
+        foreach (var entry in _overlayEntries)
         {
-            var entry = overlayEntries[i];
-
             if (entry.Renderer != null)
             {
-                var currentMaterials = entry.Renderer.materials;
-                if (currentMaterials.Length > entry.BaseMaterialCount)
+                var current = entry.Renderer.materials;
+                if (current.Length > entry.BaseMaterialCount)
                 {
-                    var baseMaterials = new Material[entry.BaseMaterialCount];
+                    var base_ = new Material[entry.BaseMaterialCount];
                     for (int m = 0; m < entry.BaseMaterialCount; m++)
-                        baseMaterials[m] = currentMaterials[m];
-                    entry.Renderer.materials = baseMaterials;
+                        base_[m] = current[m];
+                    entry.Renderer.materials = base_;
                 }
             }
-
-            if (entry.OverlayMaterial != null)
-                Destroy(entry.OverlayMaterial);
+            if (entry.OverlayMaterial != null) Destroy(entry.OverlayMaterial);
         }
-
-        overlayEntries.Clear();
+        _overlayEntries.Clear();
     }
 
     private void OnDestroy()
     {
         ClearReadyVisuals();
-
-        if (pendingMeshyModel != null)
-            Destroy(pendingMeshyModel);
+        if (_pendingMeshyModel != null) Destroy(_pendingMeshyModel);
     }
 }
