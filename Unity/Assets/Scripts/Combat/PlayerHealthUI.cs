@@ -19,9 +19,15 @@ public class PlayerHealthUI : MonoBehaviour
         Refresh();
     }
 
+    /// <summary>
+    /// Updates the health slider and label based on current player health
+    /// </summary>
     private void Refresh()
     {
-        if (playerHealth == null) return;
+        if (playerHealth == null)
+        {
+            return;
+        }
 
         if (healthSlider != null)
         {

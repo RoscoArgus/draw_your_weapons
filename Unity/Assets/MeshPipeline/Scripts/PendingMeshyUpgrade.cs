@@ -34,18 +34,30 @@ public class PendingMeshyUpgrade : MonoBehaviour
     public bool IsUpgradeReady => isUpgradeReady && _meshBuilder != null && _pendingMeshyModel != null;
     public bool IsJobStarted => isJobStarted;
 
-    // Called by MeshBuilder after extrusion
+    /// <summary>
+    /// Stores mesh builder and source texture used for Meshy upgrade
+    /// </summary>
+    /// <param name="builder">Mesh builder</param>
+    /// <param name="sourceTexture">Source texture</param>
     public void Initialise(MeshBuilder builder, Texture2D sourceTexture)
     {
         _meshBuilder = builder;
         _sourceTexture = sourceTexture;
     }
 
-    // Called by MeshPuller on first A press
+    /// <summary>
+    /// Starts a Meshy generation job for currently held weapon, if not already active
+    /// </summary>
     public void StartMeshyJob()
     {
-        if (isJobStarted) return;
-        if (_meshBuilder == null || _sourceTexture == null) return;
+        if (isJobStarted)
+        {
+            return;
+        }
+        if (_meshBuilder == null || _sourceTexture == null)
+        {
+            return;
+        }
 
         isJobStarted = true;
 
@@ -56,7 +68,10 @@ public class PendingMeshyUpgrade : MonoBehaviour
             {
                 if (this == null || gameObject == null)
                 {
-                    if (meshyModel != null) Destroy(meshyModel);
+                    if (meshyModel != null)
+                    {
+                        Destroy(meshyModel);
+                    }
                     return;
                 }
 
@@ -73,10 +88,15 @@ public class PendingMeshyUpgrade : MonoBehaviour
         );
     }
 
-    // Called by MeshPuller on second A press
+    /// <summary>
+    /// Swaps this weapon to the prepared Meshy model when ready
+    /// </summary>
     public void UpgradeToMeshyModel()
     {
-        if (!IsUpgradeReady) return;
+        if (!IsUpgradeReady)
+        {
+            return;
+        }
 
         var model = _pendingMeshyModel;
         _pendingMeshyModel = null;
@@ -88,14 +108,22 @@ public class PendingMeshyUpgrade : MonoBehaviour
 
     private void Update()
     {
-        if (!isUpgradeReady || _overlayEntries.Count == 0) return;
+        if (!isUpgradeReady || _overlayEntries.Count == 0)
+        {
+            return;
+        }
 
         float t = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
         float pulseStrength = glowIntensity * t;
         for (int i = 0; i < _overlayEntries.Count; i++)
+    {
             ApplyOverlayMaterial(_overlayEntries[i].OverlayMaterial, glowColor, pulseStrength);
     }
+    }
 
+    /// <summary>
+    /// Adds an emissive overlay so weapons glow when upgrade is ready
+    /// </summary>
     private void ApplyReadyGlow()
     {
         ClearReadyVisuals();
@@ -108,16 +136,24 @@ public class PendingMeshyUpgrade : MonoBehaviour
 
         foreach (var renderer in GetComponentsInChildren<Renderer>(true))
         {
-            if (renderer == null) continue;
+            if (renderer == null)
+            {
+                continue;
+            }
             var baseMaterials = renderer.materials;
-            if (baseMaterials == null || baseMaterials.Length == 0) continue;
+            if (baseMaterials == null || baseMaterials.Length == 0)
+            {
+                continue;
+            }
 
             var overlayMat = new Material(overlayShader) { name = "MeshyUpgradeEmissiveRimMat" };
             ApplyOverlayMaterial(overlayMat, glowColor, glowIntensity);
 
             var materialsWithOverlay = new Material[baseMaterials.Length + 1];
             for (int i = 0; i < baseMaterials.Length; i++)
+            {
                 materialsWithOverlay[i] = baseMaterials[i];
+            }
             materialsWithOverlay[baseMaterials.Length] = overlayMat;
             renderer.materials = materialsWithOverlay;
 
@@ -130,14 +166,35 @@ public class PendingMeshyUpgrade : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Applies rim and glow values to an overlay material
+    /// </summary>
+    /// <param name="material">Overlay material</param>
+    /// <param name="color">Overlay tint color</param>
+    /// <param name="strength">Overlay intensity value</param>
     private void ApplyOverlayMaterial(Material material, Color color, float strength)
     {
-        if (material == null) return;
-        if (material.HasProperty(RimColorId)) material.SetColor(RimColorId, color);
-        if (material.HasProperty(RimPowerId)) material.SetFloat(RimPowerId, rimPower);
-        if (material.HasProperty(GlowStrengthId)) material.SetFloat(GlowStrengthId, strength);
+        if (material == null)
+        {
+            return;
+        }
+        if (material.HasProperty(RimColorId))
+        {
+            material.SetColor(RimColorId, color);
+        }
+        if (material.HasProperty(RimPowerId))
+        {
+            material.SetFloat(RimPowerId, rimPower);
+        }
+        if (material.HasProperty(GlowStrengthId))
+        {
+            material.SetFloat(GlowStrengthId, strength);
+        }
     }
 
+    /// <summary>
+    /// Removes upgrade glow overlays and cleans up materials
+    /// </summary>
     private void ClearReadyVisuals()
     {
         foreach (var entry in _overlayEntries)
@@ -149,11 +206,16 @@ public class PendingMeshyUpgrade : MonoBehaviour
                 {
                     var base_ = new Material[entry.BaseMaterialCount];
                     for (int m = 0; m < entry.BaseMaterialCount; m++)
+                    {
                         base_[m] = current[m];
+                    }
                     entry.Renderer.materials = base_;
                 }
             }
-            if (entry.OverlayMaterial != null) Destroy(entry.OverlayMaterial);
+            if (entry.OverlayMaterial != null)
+            {
+                Destroy(entry.OverlayMaterial);
+            }
         }
         _overlayEntries.Clear();
     }
@@ -161,6 +223,9 @@ public class PendingMeshyUpgrade : MonoBehaviour
     private void OnDestroy()
     {
         ClearReadyVisuals();
-        if (_pendingMeshyModel != null) Destroy(_pendingMeshyModel);
+        if (_pendingMeshyModel != null)
+        {
+            Destroy(_pendingMeshyModel);
+        }
     }
 }

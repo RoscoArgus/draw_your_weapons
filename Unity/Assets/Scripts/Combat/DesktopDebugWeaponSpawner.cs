@@ -11,9 +11,14 @@ public class DesktopDebugWeaponSpawner : MonoBehaviour
     private void Update()
     {
         if (Input.GetKeyDown(spawnKey))
+        {
             SpawnDebugWeapon();
+        }
     }
 
+    /// <summary>
+    /// Spawns the debug weapon at the hand anchor position
+    /// </summary>
     private void SpawnDebugWeapon()
     {
         if (debugWeaponPrefab == null || handAnchor == null)
@@ -23,8 +28,9 @@ public class DesktopDebugWeaponSpawner : MonoBehaviour
         }
 
         if (currentWeapon != null)
+        {
             Destroy(currentWeapon);
-
+        }
         currentWeapon = Instantiate(debugWeaponPrefab, handAnchor.position, handAnchor.rotation, handAnchor);
     }
 }

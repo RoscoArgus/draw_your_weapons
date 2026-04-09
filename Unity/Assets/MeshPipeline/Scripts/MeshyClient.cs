@@ -21,6 +21,13 @@ public class MeshyClient : MonoBehaviour
 
     private const string BaseUrl = "https://api.meshy.ai/openapi/v1/image-to-3d";
 
+    /// <summary>
+    /// Starts Meshy generation for a texture
+    /// </summary>
+    /// <param name="inputTexture">Source texture</param>
+    /// <param name="cache">Meshy cache</param>
+    /// <param name="onComplete">Callback when the model generation is successful</param>
+    /// <param name="onError">Callback when generation fails</param>
     public void GenerateFromTexture(
         Texture2D inputTexture,
         MeshyCache cache,
@@ -40,6 +47,16 @@ public class MeshyClient : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Polls a cached task and resubmits if the task no longer exists
+    /// </summary>
+    /// <param name="inputTexture">Source texture</param>
+    /// <param name="hash">Cache key derived from the source texture</param>
+    /// <param name="cache">Meshy cache</param>
+    /// <param name="cachedTaskId">Previously cached Meshy task ID</param>
+    /// <param name="onComplete">Callback when model generation is successful</param>
+    /// <param name="onError">Callback when generation fails</param>
+    /// <returns>Enumerator used by Unity to run this coroutine</returns>
     private IEnumerator PollCachedTaskOrResubmit(
         Texture2D inputTexture,
         string hash,
@@ -58,7 +75,9 @@ public class MeshyClient : MonoBehaviour
         if (!IsTaskNotFoundError(pollError))
         {
             if (!string.IsNullOrEmpty(pollError))
+            {
                 onError?.Invoke(pollError);
+            }
             yield break;
         }
 
@@ -67,14 +86,23 @@ public class MeshyClient : MonoBehaviour
         yield return SubmitAndPoll(inputTexture, hash, cache, onComplete, onError);
     }
 
+    /// <summary>
+    /// Submits a new Meshy task and polls until completion.
+    /// </summary>
+    /// <param name="texture">Texture to encode, hash, or write to disk</param>
+    /// <param name="hash">Cache key derived from the source texture</param>
+    /// <param name="cache">Meshy cache</param>
+    /// <param name="onComplete">Callback when model generation is successful</param>
+    /// <param name="onError">Callback invoked when generation fails</param>
+    /// <returns>Enumerator used by Unity to run this coroutine</returns>
     private IEnumerator SubmitAndPoll(
-        Texture2D tex,
+        Texture2D texture,
         string hash,
         MeshyCache cache,
         Action<GameObject> onComplete,
         Action<string> onError)
     {
-        byte[] pngBytes = tex.EncodeToPNG();
+        byte[] pngBytes = texture.EncodeToPNG();
         string b64 = Convert.ToBase64String(pngBytes);
         string dataUri = $"data:image/png;base64,{b64}";
 
@@ -96,7 +124,7 @@ public class MeshyClient : MonoBehaviour
 
         if (post.result != UnityWebRequest.Result.Success)
         {
-            string err = $"[MeshyClient] POST failed: {post.error} — {post.downloadHandler.text}";
+            string err = $"[MeshyClient] POST failed: {post.error} â€” {post.downloadHandler.text}";
             Debug.LogError(err);
             onError?.Invoke(err);
             yield break;
@@ -116,7 +144,7 @@ public class MeshyClient : MonoBehaviour
 
         try
         {
-            cache.Store(hash, taskId, tex.name);
+            cache.Store(hash, taskId, texture.name);
         }
         catch (Exception e)
         {
@@ -126,6 +154,14 @@ public class MeshyClient : MonoBehaviour
         yield return PollAndLoad(taskId, onComplete, onError);
     }
 
+    /// <summary>
+    /// Polls task status and loads the model when generation succeeds
+    /// </summary>
+    /// <param name="taskId">Meshy task ID</param>
+    /// <param name="onComplete">Callback when the model generation is successful</param>
+    /// <param name="onError">Callback when generation fails</param>
+    /// <param name="failOnNotFound">Flag to stop polling when a task is non-existent</param>
+    /// <returns>Enumerator used by Unity to run this coroutine</returns>
     private IEnumerator PollAndLoad(
         string taskId,
         Action<GameObject> onComplete,
@@ -172,7 +208,7 @@ public class MeshyClient : MonoBehaviour
                 continue;
             }
 
-            Debug.Log($"[MeshyClient] Task {taskId} — {task.status} ({task.progress}%)");
+            Debug.Log($"[MeshyClient] Task {taskId} â€” {task.status} ({task.progress}%)");
 
             if (task.status == "SUCCEEDED")
             {
@@ -192,19 +228,36 @@ public class MeshyClient : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Checks if an error for a missing Meshy task
+    /// </summary>
+    /// <param name="error">Error message</param>
+    /// <returns>True when Meshy task missing, false otherwise</returns>
     private bool IsTaskNotFoundError(string error)
     {
         return !string.IsNullOrEmpty(error) &&
                error.StartsWith(TaskNotFoundErrorPrefix, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Returns a clamped polling interval in seconds
+    /// </summary>
     private float GetSafePollIntervalSeconds()
     {
         if (float.IsNaN(pollInterval) || float.IsInfinity(pollInterval) || pollInterval < 0.1f)
+        {
             return 0.1f;
+        }
         return pollInterval;
     }
 
+    /// <summary>
+    /// Downloads the GLB and instantiates it with glTFast
+    /// </summary>
+    /// <param name="glbUrl">URL of the GLB file to download</param>
+    /// <param name="onComplete">Callback when model generation is successful</param>
+    /// <param name="onError">Callback when generation fails</param>
+    /// <returns>Enumerator used by Unity to run this coroutine</returns>
     private IEnumerator DownloadAndInstantiate(
         string glbUrl,
         Action<GameObject> onComplete,

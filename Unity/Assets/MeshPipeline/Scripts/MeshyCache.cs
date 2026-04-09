@@ -18,23 +18,34 @@ public class MeshyCache : ScriptableObject
 
     private void OnEnable() => Load();
 
+    /// <summary>
+    /// Loads cached Meshy task IDs
+    /// </summary>
     private void Load()
     {
         _entries.Clear();
-        if (!File.Exists(FilePath)) return;
+        if (!File.Exists(FilePath))
+        {
+            return;
+        }
 
         try
         {
             var json = File.ReadAllText(FilePath);
             var file = JsonUtility.FromJson<CacheFile>(json);
             for (int i = 0; i < file.keys.Count; i++)
+            {
                 _entries[file.keys[i]] = file.values[i];
+            }
 
             Debug.Log($"[MeshyCache] Loaded {_entries.Count} cached task(s) from {FilePath}");
         }
         catch (Exception e) { Debug.LogWarning($"[MeshyCache] Failed to load: {e.Message}"); }
     }
 
+    /// <summary>
+    /// Saves cached Meshy task IDs to disk
+    /// </summary>
     public void Save()
     {
         var file = new CacheFile();
@@ -42,6 +53,12 @@ public class MeshyCache : ScriptableObject
         File.WriteAllText(FilePath, JsonUtility.ToJson(file, true));
     }
 
+    /// <summary>
+    /// Looks up a cached task ID for a texture hash
+    /// </summary>
+    /// <param name="hash">Cache key derived from the source texture</param>
+    /// <param name="taskId">Meshy task ID</param>
+    /// <returns>True when cache hit, otherwise false</returns>
     public bool TryGet(string hash, out string taskId)
     {
         if (_entries.TryGetValue(hash, out var entry))
@@ -53,21 +70,37 @@ public class MeshyCache : ScriptableObject
         return false;
     }
 
+    /// <summary>
+    /// Stores or updates a cached task ID for a texture hash
+    /// </summary>
+    /// <param name="hash">Cache key derived from the source texture</param>
+    /// <param name="taskId">Meshy task ID</param>
+    /// <param name="textureName">Name of the texture associated with the cache entry</param>
     public void Store(string hash, string taskId, string textureName)
     {
         _entries[hash] = new CacheEntry { taskId = taskId, textureName = textureName };
         Save();
     }
 
+    /// <summary>
+    /// Removes a cached entry for the given texture hash
+    /// </summary>
+    /// <param name="hash">Cache key derived from the source texture</param>
+    /// <returns>True on success, false otherwise</returns>
     public bool Remove(string hash)
     {
         bool removed = _entries.Remove(hash);
         if (removed)
+        {
             Save();
+        }
         return removed;
     }
 
     [ContextMenu("List Cache Entries")]
+    /// <summary>
+    /// Logs all cached Meshy entries to console
+    /// </summary>
     public void ListCacheEntries()
     {
         if (_entries.Count == 0)
@@ -78,21 +111,31 @@ public class MeshyCache : ScriptableObject
 
         Debug.Log($"[MeshyCache] {_entries.Count} cached entry/entries:");
         foreach (var kv in _entries)
-            Debug.Log($"  {kv.Value.textureName} → Task ID: {kv.Value.taskId} (Hash: {kv.Key})");
+            Debug.Log($"  {kv.Value.textureName} â†’ Task ID: {kv.Value.taskId} (Hash: {kv.Key})");
     }
 
     [ContextMenu("Clear Cache")]
+    /// <summary>
+    /// Clears all cached entries and deletes the cache file
+    /// </summary>
     public void ClearCache()
     {
         _entries.Clear();
         if (File.Exists(FilePath))
+        {
             File.Delete(FilePath);
+        }
         Debug.Log("[MeshyCache] Cache cleared.");
     }
 
-    public static string HashTexture(Texture2D tex)
+    /// <summary>
+    /// Computes an MD5 hash based on texture PNG
+    /// </summary>
+    /// <param name="texture">Texture to hash</param>
+    /// <returns>Computed string value</returns>
+    public static string HashTexture(Texture2D texture)
     {
-        byte[] bytes = tex.EncodeToPNG();
+        byte[] bytes = texture.EncodeToPNG();
         using var md5 = MD5.Create();
         byte[] hash = md5.ComputeHash(bytes);
         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(MeshCollider))]
@@ -29,12 +29,21 @@ public class MeshInteraction : MonoBehaviour
         if (_rb == null)
         {
             var filter = GetComponent<MeshFilter>();
-            if (filter == null) filter = GetComponentInChildren<MeshFilter>();
+            if (filter == null)
+            {
+                filter = GetComponentInChildren<MeshFilter>();
+            }
             if (filter != null)
+            {
                 Initialise(filter.sharedMesh);
+            }
         }
     }
 
+    /// <summary>
+    /// Initialises collision and rigidbody settings for mesh interaction
+    /// </summary>
+    /// <param name="mesh">Mesh data</param>
     public void Initialise(Mesh mesh)
     {
         _col = GetComponent<MeshCollider>();
@@ -50,6 +59,9 @@ public class MeshInteraction : MonoBehaviour
         _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
     }
 
+    /// <summary>
+    /// Sets the mesh to attraction mode before it is held
+    /// </summary>
     public void BeginAttract()
     {
         IsBeingAttracted = true;
@@ -57,6 +69,10 @@ public class MeshInteraction : MonoBehaviour
         _rb.useGravity = false;
     }
 
+    /// <summary>
+    /// Grabs the mesh with a controller and caches local grab offsets
+    /// </summary>
+    /// <param name="controller">Controller currently holding the mesh</param>
     public void BeginHold(OVRInput.Controller controller)
     {
         IsBeingAttracted = false;
@@ -72,6 +88,9 @@ public class MeshInteraction : MonoBehaviour
         _lastControllerPos = controllerPos;
     }
 
+    /// <summary>
+    /// Stops attraction and re-enables physics on the mesh
+    /// </summary>
     public void ReleaseAttract()
     {
         IsBeingAttracted = false;
@@ -83,7 +102,10 @@ public class MeshInteraction : MonoBehaviour
 
     private void Update()
     {
-        if (_holdingController == OVRInput.Controller.None) return;
+        if (_holdingController == OVRInput.Controller.None)
+        {
+            return;
+        }
 
         if (!OVRInput.Get(OVRInput.Button.PrimaryHandTrigger, _holdingController))
         {
@@ -108,6 +130,9 @@ public class MeshInteraction : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Releases the held mesh and applies controller throw velocity
+    /// </summary>
     private void Release()
     {
         OVRInput.Controller released = _holdingController;
