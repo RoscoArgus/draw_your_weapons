@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
@@ -9,6 +10,8 @@ public class PlayerHealth : MonoBehaviour
     private float currentHealth;
     private bool isDead;
 
+    public event Action<float, float> OnHealthChanged;
+
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
     public bool IsDead => isDead;
@@ -17,6 +20,7 @@ public class PlayerHealth : MonoBehaviour
     private void Awake()
     {
         currentHealth = maxHealth;
+        NotifyHealthChanged();
     }
 
     /// <summary>
@@ -36,6 +40,7 @@ public class PlayerHealth : MonoBehaviour
 
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0f);
+        NotifyHealthChanged();
 
         if (debugLogs)
         {
@@ -64,6 +69,7 @@ public class PlayerHealth : MonoBehaviour
 
         currentHealth += amount;
         currentHealth = Mathf.Min(currentHealth, maxHealth);
+        NotifyHealthChanged();
     }
 
     /// <summary>
@@ -73,6 +79,7 @@ public class PlayerHealth : MonoBehaviour
     {
         isDead = false;
         currentHealth = maxHealth;
+        NotifyHealthChanged();
     }
 
     /// <summary>
@@ -90,5 +97,13 @@ public class PlayerHealth : MonoBehaviour
         {
             Debug.Log("Player died.");
         }
+    }
+
+    /// <summary>
+    /// Broadcasts current and max health values to listeners
+    /// </summary>
+    private void NotifyHealthChanged()
+    {
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }
 }

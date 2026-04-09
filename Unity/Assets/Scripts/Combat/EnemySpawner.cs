@@ -7,6 +7,17 @@ public class EnemySpawner : MonoBehaviour
     public GameObject[] enemyPrefabs;
     public Transform[] spawnPoints;
 
+    private WaveManager waveManager;
+
+    /// <summary>
+    /// Assigns the wave manager for spawned enemy callbacks
+    /// </summary>
+    /// <param name="manager">Wave manager instance</param>
+    public void SetWaveManager(WaveManager manager)
+    {
+        waveManager = manager;
+    }
+
     /// <summary>
     /// Spawns a random enemy at a random spawn point and links it to the player target
     /// </summary>
@@ -41,6 +52,13 @@ public class EnemySpawner : MonoBehaviour
         {
             mover.target = playerTarget;
         }
-        return enemyObj.GetComponent<EnemyHealth>();
+
+        EnemyHealth enemyHealth = enemyObj.GetComponent<EnemyHealth>();
+        if (enemyHealth != null && waveManager != null)
+        {
+            enemyHealth.SetWaveManager(waveManager);
+        }
+
+        return enemyHealth;
     }
 }

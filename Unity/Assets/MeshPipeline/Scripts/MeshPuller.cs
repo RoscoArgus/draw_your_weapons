@@ -21,6 +21,7 @@ public class MeshPuller : MonoBehaviour
     private InputAction _gripAction;
     private InputAction _releaseAction;
     private MeshInteraction _targetMesh;
+    private MeshInteraction _heldMesh;
     private Coroutine _attractRoutine;
 
     private Vector3 _targetHitPoint;
@@ -115,6 +116,8 @@ public class MeshPuller : MonoBehaviour
             _targetMesh.ReleaseAttract();
             _targetMesh = null;
         }
+
+        _heldMesh = null;
     }
 
     /// <summary>
@@ -141,6 +144,7 @@ public class MeshPuller : MonoBehaviour
             if (dist <= snapDistance)
             {
                 mesh.BeginHold(controller);
+                _heldMesh = mesh;
                 _targetMesh = null;
                 _attractRoutine = null;
                 yield break;
@@ -195,11 +199,23 @@ public class MeshPuller : MonoBehaviour
     /// </summary>
     private MeshInteraction FindHeldMesh()
     {
+        if (_heldMesh != null && _heldMesh.IsHeld)
+        {
+            return _heldMesh;
+        }
+
+        _heldMesh = null;
         foreach (var mesh in FindObjectsByType<MeshInteraction>(FindObjectsSortMode.None))
-            if (mesh.IsHeld)
+        {
+            if (!mesh.IsHeld)
             {
-                return mesh;
+                continue;
             }
+
+            _heldMesh = mesh;
+            return _heldMesh;
+        }
+
         return null;
     }
 }

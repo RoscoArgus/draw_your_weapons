@@ -165,6 +165,11 @@ public class QuestCam : MonoBehaviour
     /// <returns>Processed texture</returns>
     private static Texture2D CentreCrop(Texture source, int outputWidth, int outputHeight, float fraction)
     {
+        if (source == null)
+        {
+            return null;
+        }
+
         fraction = Mathf.Clamp(fraction, 0.1f, 1.0f);
         float sourceWidth = source.width * fraction;
         float sourceHeight = source.height * fraction;
@@ -175,16 +180,22 @@ public class QuestCam : MonoBehaviour
         float u1 = (sourceX + sourceWidth) / source.width;
         float v1 = (sourceY + sourceHeight) / source.height;
 
-        RenderTexture rt = RenderTexture.Gettemp(outputWidth, outputHeight, 0, RenderTextureFormat.ARGB32);
+        RenderTexture rt = RenderTexture.GetTemporary(outputWidth, outputHeight, 0, RenderTextureFormat.ARGB32);
         RenderTexture prev = RenderTexture.active;
-        Graphics.Blit(source, rt, new Vector2(u1 - u0, v1 - v0), new Vector2(u0, v0));
-        RenderTexture.active = rt;
-        Texture2D result = new Texture2D(outputWidth, outputHeight, TextureFormat.RGB24, false);
-        result.ReadPixels(new Rect(0, 0, outputWidth, outputHeight), 0, 0);
-        result.Apply();
-        RenderTexture.active = prev;
-        RenderTexture.Releasetemp(rt);
-        return result;
+        try
+        {
+            Graphics.Blit(source, rt, new Vector2(u1 - u0, v1 - v0), new Vector2(u0, v0));
+            RenderTexture.active = rt;
+            Texture2D result = new Texture2D(outputWidth, outputHeight, TextureFormat.RGB24, false);
+            result.ReadPixels(new Rect(0, 0, outputWidth, outputHeight), 0, 0);
+            result.Apply();
+            return result;
+        }
+        finally
+        {
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+        }
     }
 
     /// <summary>
@@ -196,16 +207,27 @@ public class QuestCam : MonoBehaviour
     /// <returns>Processed texture</returns>
     private static Texture2D BltToTexture(Texture source, int width, int height)
     {
-        RenderTexture rt = RenderTexture.Gettemp(width, height, 0, RenderTextureFormat.ARGB32);
+        if (source == null)
+        {
+            return null;
+        }
+
+        RenderTexture rt = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32);
         RenderTexture prev = RenderTexture.active;
-        Graphics.Blit(source, rt);
-        RenderTexture.active = rt;
-        Texture2D result = new Texture2D(width, height, TextureFormat.RGB24, false);
-        result.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-        result.Apply();
-        RenderTexture.active = prev;
-        RenderTexture.Releasetemp(rt);
-        return result;
+        try
+        {
+            Graphics.Blit(source, rt);
+            RenderTexture.active = rt;
+            Texture2D result = new Texture2D(width, height, TextureFormat.RGB24, false);
+            result.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+            result.Apply();
+            return result;
+        }
+        finally
+        {
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+        }
     }
 
     /// <summary>

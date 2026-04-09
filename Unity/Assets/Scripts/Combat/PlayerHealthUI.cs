@@ -14,7 +14,28 @@ public class PlayerHealthUI : MonoBehaviour
         Refresh();
     }
 
-    private void Update()
+    private void OnEnable()
+    {
+        if (playerHealth != null)
+        {
+            playerHealth.OnHealthChanged += HandleHealthChanged;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (playerHealth != null)
+        {
+            playerHealth.OnHealthChanged -= HandleHealthChanged;
+        }
+    }
+
+    /// <summary>
+    /// Refreshes UI when player health changes
+    /// </summary>
+    /// <param name="current">Current health value</param>
+    /// <param name="max">Maximum health value</param>
+    private void HandleHealthChanged(float current, float max)
     {
         Refresh();
     }
@@ -31,7 +52,10 @@ public class PlayerHealthUI : MonoBehaviour
 
         if (healthSlider != null)
         {
-            healthSlider.maxValue = playerHealth.MaxHealth;
+            if (!Mathf.Approximately(healthSlider.maxValue, playerHealth.MaxHealth))
+            {
+                healthSlider.maxValue = playerHealth.MaxHealth;
+            }
             healthSlider.value = playerHealth.CurrentHealth;
         }
 

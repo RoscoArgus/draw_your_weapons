@@ -17,6 +17,7 @@ public class EnemyHealth : MonoBehaviour
     private float currentHealth;
     private bool isDead;
     private EnemySfxPlayer enemySfxPlayer;
+    private WaveManager waveManager;
 
     public bool IsDead => isDead;
     public float CurrentHealth => currentHealth;
@@ -25,6 +26,15 @@ public class EnemyHealth : MonoBehaviour
     {
         enemySfxPlayer = GetComponent<EnemySfxPlayer>();
         currentHealth = maxHealth;
+    }
+
+    /// <summary>
+    /// Assigns the wave manager used for kill notifications
+    /// </summary>
+    /// <param name="manager">Wave manager instance</param>
+    public void SetWaveManager(WaveManager manager)
+    {
+        waveManager = manager;
     }
 
     /// <summary>
@@ -133,7 +143,6 @@ public class EnemyHealth : MonoBehaviour
         {
             enemySfxPlayer.PlayRandomDeathSound();
         }
-        WaveManager waveManager = FindObjectOfType<WaveManager>();
         if (waveManager != null)
         {
             waveManager.NotifyEnemyKilled(this);

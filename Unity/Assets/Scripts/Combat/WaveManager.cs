@@ -31,6 +31,14 @@ public class WaveManager : MonoBehaviour
 
     private void Start()
     {
+        if (enemySpawner == null)
+        {
+            Debug.LogError("WaveManager has no EnemySpawner assigned.");
+            enabled = false;
+            return;
+        }
+
+        enemySpawner.SetWaveManager(this);
         StartCoroutine(RunWaves());
     }
 

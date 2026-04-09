@@ -360,17 +360,38 @@ public class MeshBuilder : MonoBehaviour
             return;
         }
 
-        var interaction = gameObject.AddComponent<MeshInteraction>();
+        var interaction = gameObject.GetComponent<MeshInteraction>();
+        if (interaction == null)
+        {
+            interaction = gameObject.AddComponent<MeshInteraction>();
+        }
         interaction.swingClip = swingClip;
         interaction.audioSource = sceneAudioSource;
         interaction.Initialise(mesh);
 
-        var hitCollider = gameObject.AddComponent<MeshCollider>();
+        MeshCollider hitCollider = null;
+        MeshCollider[] meshColliders = gameObject.GetComponents<MeshCollider>();
+        for (int index = 0; index < meshColliders.Length; index++)
+        {
+            MeshCollider meshCollider = meshColliders[index];
+            if (meshCollider != null && meshCollider.isTrigger)
+            {
+                hitCollider = meshCollider;
+                break;
+            }
+        }
+        if (hitCollider == null)
+        {
+            hitCollider = gameObject.AddComponent<MeshCollider>();
+        }
         hitCollider.sharedMesh = mesh;
         hitCollider.convex = true;
         hitCollider.isTrigger = true;
 
-        gameObject.AddComponent<WeaponDamageDealer>();
+        if (gameObject.GetComponent<WeaponDamageDealer>() == null)
+        {
+            gameObject.AddComponent<WeaponDamageDealer>();
+        }
     }
 
     /// <summary>

@@ -8,6 +8,18 @@ using Application = UnityEngine.Application;
 
 public class DrawingExtractor : MonoBehaviour
 {
+    private static readonly Vector2Int[] FloodFillDirections =
+    {
+        new Vector2Int(1, 0),   // E
+        new Vector2Int(-1, 0),  // E
+        new Vector2Int(0, 1),   // S
+        new Vector2Int(0, -1),  // N
+        new Vector2Int(1, 1),   // SE
+        new Vector2Int(1, -1),  // NE
+        new Vector2Int(-1, 1),  // SW
+        new Vector2Int(-1, -1)  // NW
+    };
+
     [Header("Background Normalisation")]
     [Range(0.05f, 0.5f)]
     public float backgroundBlurFraction = 0.15f;
@@ -148,16 +160,13 @@ public class DrawingExtractor : MonoBehaviour
         bool[] black = new bool[pixels.Length];
         for (int i = 0; i < pixels.Length; i++)
         {
-            black[i] = pixels[i].r < 0.5f;
+            black[i] = IsBlack(pixels[i]);
         }
 
         int[] labels = new int[pixels.Length];
         var componentSizes = new List<int>();
         var componentTouches = new List<bool>();
         int nextLabel = 1;
-        int[] deltaX = { 1, -1, 0, 0 };
-        int[] deltaY = { 0, 0, 1, -1 };
-
         for (int startY = 0; startY < height; startY++)
         {
             for (int startX = 0; startX < width; startX++)
@@ -187,10 +196,10 @@ public class DrawingExtractor : MonoBehaviour
                     {
                         borderHit = true;
                     }
-                    for (int d = 0; d < 4; d++)
+                    for (int d = 0; d < FloodFillDirections.Length; d++)
                     {
-                        int neighborX = currentX + deltaX[d];
-                        int neighborY = currentY + deltaY[d];
+                        int neighborX = currentX + FloodFillDirections[d].x;
+                        int neighborY = currentY + FloodFillDirections[d].y;
                         if (neighborX < 0 || neighborX >= width || neighborY < 0 || neighborY >= height)
                         {
                             continue;
@@ -409,7 +418,7 @@ public class DrawingExtractor : MonoBehaviour
         bool[] mask = new bool[elementCount];
         for (int i = 0; i < elementCount; i++)
         {
-            mask[i] = pixels[i].r < 0.5f;
+            mask[i] = IsBlack(pixels[i]);
         }
         return mask;
     }
@@ -601,17 +610,21 @@ public class DrawingExtractor : MonoBehaviour
             TryEnqueue(width - 1, y, width, height, pixels, mask, queue);
         }
 
-        int[] deltaX = { 1, -1, 0, 0 };
-        int[] deltaY = { 0, 0, 1, -1 };
-
         while (queue.Count > 0)
         {
             int index = queue.Dequeue();
             int x = index % width;
             int y = index / width;
-            for (int d = 0; d < 4; d++)
+            for (int d = 0; d < FloodFillDirections.Length; d++)
             {
-                TryEnqueue(x + deltaX[d], y + deltaY[d], width, height, pixels, mask, queue);
+                TryEnqueue(
+                    x + FloodFillDirections[d].x,
+                    y + FloodFillDirections[d].y,
+                    width,
+                    height,
+                    pixels,
+                    mask,
+                    queue);
             }
         }
 
