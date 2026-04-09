@@ -31,9 +31,20 @@ public class WaveManager : MonoBehaviour
 
     private void Start()
     {
+        if (enemySpawner == null)
+        {
+            Debug.LogError("WaveManager has no EnemySpawner assigned.");
+            enabled = false;
+            return;
+        }
+
+        enemySpawner.SetWaveManager(this);
         StartCoroutine(RunWaves());
     }
 
+    /// <summary>
+    /// Runs the wave loop
+    /// </summary>
     private IEnumerator RunWaves()
     {
         while (true)
@@ -52,8 +63,9 @@ public class WaveManager : MonoBehaviour
             {
                 EnemyHealth enemy = enemySpawner.SpawnEnemy();
                 if (enemy != null)
+                {
                     aliveEnemies.Add(enemy);
-
+                }
                 yield return new WaitForSeconds(timeBetweenSpawns);
             }
 
@@ -67,12 +79,22 @@ public class WaveManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Removes a killed enemy from the list of live enemies
+    /// </summary>
+    /// <param name="enemy">Killed enemy</param>
     public void NotifyEnemyKilled(EnemyHealth enemy)
     {
         if (aliveEnemies.Contains(enemy))
+        {
             aliveEnemies.Remove(enemy);
+        }
     }
 
+    /// <summary>
+    /// Checks if all enemies are cleared by removing any null or dead entries and verifying the list is empty
+    /// </summary>
+    /// <returns>True when all enemies are cleared, false otherwise</returns>
     private bool AllEnemiesCleared()
     {
         aliveEnemies.RemoveAll(e => e == null || e.IsDead);

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -21,6 +21,7 @@ public class MeshPuller : MonoBehaviour
     private InputAction _gripAction;
     private InputAction _releaseAction;
     private MeshInteraction _targetMesh;
+    private MeshInteraction _heldMesh;
     private Coroutine _attractRoutine;
 
     private Vector3 _targetHitPoint;
@@ -65,12 +66,18 @@ public class MeshPuller : MonoBehaviour
     private void Update()
     {
         if (OVRInput.GetDown(OVRInput.Button.One, OVRInput.Controller.RTouch))
+        {
             TryUpgradeHeldMesh();
+        }
     }
 
     private Vector3 _targetHitPointLocal; // local space, moves with mesh
 
-    private void OnGripPressed(InputAction.CallbackContext ctx)
+    /// <summary>
+    /// Starts pulling the first encountered hittable mesh toward the controller
+    /// </summary>
+    /// <param name="context">Input action callback context</param>
+    private void OnGripPressed(InputAction.CallbackContext context)
     {
         Ray ray = new Ray(transform.position, transform.forward);
 
@@ -82,14 +89,21 @@ public class MeshPuller : MonoBehaviour
                 _targetMesh = mesh;
                 // Store in local space so it moves with the mesh
                 _targetHitPointLocal = mesh.transform.InverseTransformPoint(hit.point);
-                if (_attractRoutine != null) StopCoroutine(_attractRoutine);
+                if (_attractRoutine != null)
+                {
+                    StopCoroutine(_attractRoutine);
+                }
                 _attractRoutine = StartCoroutine(AttractMesh(_targetMesh));
             }
         }
     }
 
 
-    private void OnGripReleased(InputAction.CallbackContext ctx)
+    /// <summary>
+    /// Stops pulling and releases any mesh being attracted
+    /// </summary>
+    /// <param name="context">Input action callback context</param>
+    private void OnGripReleased(InputAction.CallbackContext context)
     {
         if (_attractRoutine != null)
         {
@@ -102,8 +116,15 @@ public class MeshPuller : MonoBehaviour
             _targetMesh.ReleaseAttract();
             _targetMesh = null;
         }
+
+        _heldMesh = null;
     }
 
+    /// <summary>
+    /// Moves a target mesh toward the controller until it can be held
+    /// </summary>
+    /// <param name="mesh">Mesh data</param>
+    /// <returns>Enumerator to run this coroutine</returns>
     private IEnumerator AttractMesh(MeshInteraction mesh)
     {
         OVRInput.Controller controller = isRightHand
@@ -123,6 +144,7 @@ public class MeshPuller : MonoBehaviour
             if (dist <= snapDistance)
             {
                 mesh.BeginHold(controller);
+                _heldMesh = mesh;
                 _targetMesh = null;
                 _attractRoutine = null;
                 yield break;
@@ -135,6 +157,9 @@ public class MeshPuller : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Starts or applies a Meshy upgrade for the currently held mesh
+    /// </summary>
     private void TryUpgradeHeldMesh()
     {
         MeshInteraction held = FindHeldMesh();
@@ -153,13 +178,13 @@ public class MeshPuller : MonoBehaviour
 
         if (upgrade.IsUpgradeReady)
         {
-            // Second press — swap to Meshy mesh
+            // Second press - swap to Meshy mesh
             upgrade.UpgradeToMeshyModel();
             Debug.Log("[MeshPuller] Meshy upgrade applied.");
         }
         else if (!upgrade.IsJobStarted)
         {
-            // First press — kick off Meshy job
+            // First press - kick off Meshy job
             upgrade.StartMeshyJob();
             Debug.Log("[MeshPuller] Meshy job started.");
         }
@@ -169,10 +194,28 @@ public class MeshPuller : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Finds the mesh currently marked as held
+    /// </summary>
     private MeshInteraction FindHeldMesh()
     {
+        if (_heldMesh != null && _heldMesh.IsHeld)
+        {
+            return _heldMesh;
+        }
+
+        _heldMesh = null;
         foreach (var mesh in FindObjectsByType<MeshInteraction>(FindObjectsSortMode.None))
-            if (mesh.IsHeld) return mesh;
+        {
+            if (!mesh.IsHeld)
+            {
+                continue;
+            }
+
+            _heldMesh = mesh;
+            return _heldMesh;
+        }
+
         return null;
     }
 }

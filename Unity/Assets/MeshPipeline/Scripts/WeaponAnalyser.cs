@@ -1,9 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-/// <summary>
-/// Holds the final normalized attributes of a weapon.
-/// </summary>
 [System.Serializable]
 public struct WeaponStats 
 {
@@ -12,10 +9,6 @@ public struct WeaponStats
     public float Bluntness;
 }
 
-/// <summary>
-/// Analyzes the geometric contour of a drawn weapon to calculate its 
-/// physical RPG-style attributes based on its shape features.
-/// </summary>
 public class WeaponAnalyser : MonoBehaviour
 {
     [Header("Detection Thresholds")]
@@ -40,10 +33,10 @@ public class WeaponAnalyser : MonoBehaviour
     public float pierceAspectWeight = 2f;
 
     /// <summary>
-    /// Analyses a weapon contour and maps geometric features to weapon stats.
+    /// Analyses a weapon contour and derives weapon stats from geometric features
     /// </summary>
-    /// <param name="contour">List of 2D points representing the weapon's outline.</param>
-    /// <returns>A WeaponStats struct with Slashing, Piercing, and Bluntness balanced to 1.0 (100%)</returns>
+    /// <param name="contour">List of 2D points around the weapon's outline</param>
+    /// <returns>A WeaponStats struct with Slashing, Piercing, and Bluntness balanced to 1.0</returns>
     public WeaponStats AnalyseShape(List<Vector2> contour)
     {
         if (contour == null || contour.Count < 3)
@@ -64,11 +57,11 @@ public class WeaponAnalyser : MonoBehaviour
         GetBoundsInfo(contour, out Vector2 bbCenter, out float maxDimension);
         float weightOffset = maxDimension > 0 ? (Vector2.Distance(centroid, bbCenter) / maxDimension) : 0f;
 
-        // Calculate Blade Edge Smoothness
+        // Calculate edge smoothness
         float smoothEdgeRatio = CalculateMaxSmoothEdgeRatio(contour, smoothEdgeAngleThreshold, perimeter);
 
         // BLUNTNESS:
-        // Highly circular (mace head) and low aspect ratio (not long) gives huge bluntness
+        // Highly circularity (e.g. mace head) and low aspect ratio (e.g. not long) gives big blunt bonus
         // Increased by top-heaviness (center of mass far from spatial center)
         float circularity = (4f * Mathf.PI * area) / Mathf.Max(perimeter * perimeter, 0.0001f);
         float topHeavinessBonus = weightOffset * bluntTopHeavyWeight; 
@@ -80,7 +73,7 @@ public class WeaponAnalyser : MonoBehaviour
         float bladeBonus = smoothEdgeRatio * slashSmoothEdgeWeight;
         float rawSlash = (aspectRatio * slashAspectWeight) + bladeBonus; 
         
-        // Penalty: Too many spikes ruin slicing capability
+        // Too many spikes ruin slicing capability - penalise slashing for this
         if (sharpPoints > 2) 
         {
             rawSlash /= (sharpPoints * slashSpikePenaltyMultiplier); 
@@ -90,10 +83,13 @@ public class WeaponAnalyser : MonoBehaviour
         // Drastically increased by the presence of sharp spikes, plus length
         float rawPierce = (Mathf.Pow(sharpPoints, 1.5f) * pierceSpikeBaseWeight) + (aspectRatio * pierceAspectWeight);
 
-        // Normalise scores to sum to 1.0
+        // Normalize scores to sum to 1.0
         float total = rawBlunt + rawSlash + rawPierce;
         
-        if (total == 0f) total = 1f;
+        if (total == 0f)
+        {
+            total = 1f;
+        }
 
         return new WeaponStats {
             Slashing = rawSlash / total,
@@ -103,8 +99,10 @@ public class WeaponAnalyser : MonoBehaviour
     }
 
     /// <summary>
-    /// Computes the total area of the shape using the shoelace formula
+    /// Computes the total area of the shape
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>Computed floating-point value</returns>
     private float CalculateArea(List<Vector2> contour)
     {
         float area = 0f;
@@ -119,6 +117,8 @@ public class WeaponAnalyser : MonoBehaviour
     /// <summary>
     /// Computes the total perimeter length of the contour
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>Computed floating-point value</returns>
     private float CalculatePerimeter(List<Vector2> contour)
     {
         float perimeter = 0f;
@@ -131,36 +131,57 @@ public class WeaponAnalyser : MonoBehaviour
     }
 
     /// <summary>
-    /// Calculates the aspect ratio of the bounding box (longest dimension / shortest dimension)
+    /// Calculates the aspect ratio of the bounding box (longest side/shortest side)
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>Computed floating-point value</returns>
     private float CalculateAspectRatio(List<Vector2> contour)
     {
-        float minX = float.MaxValue, minY = float.MaxValue;
-        float maxX = float.MinValue, maxY = float.MinValue;
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
 
-        foreach (var p in contour)
+        foreach (var point in contour)
         {
-            if (p.x < minX) minX = p.x;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.y > maxY) maxY = p.y;
+            if (point.x < minX)
+            {
+                minX = point.x;
+            }
+            if (point.x > maxX)
+            {
+                maxX = point.x;
+            }
+            if (point.y < minY)
+            {
+                minY = point.y;
+            }
+            if (point.y > maxY)
+            {
+                maxY = point.y;
+            }
         }
 
         float width = maxX - minX;
         float height = maxY - minY;
         
-        if (width == 0 || height == 0) return 1f;
+        if (width == 0 || height == 0)
+        {
+            return 1f;
+        }
 
         return Mathf.Max(width / height, height / width);
     }
 
     /// <summary>
-    /// Calculates the center of mass (centroid) of the shape
+    /// Calculates the center of mass of the shape
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>Computed 2D point</returns>
     private Vector2 CalculateCentroid(List<Vector2> contour)
     {
-        float cx = 0f;
-        float cy = 0f;
+        float centroidX = 0f;
+        float centroidY = 0f;
         float signedArea = 0f;
         
         for (int i = 0; i < contour.Count; i++)
@@ -169,35 +190,55 @@ public class WeaponAnalyser : MonoBehaviour
             float cross = (contour[i].x * contour[next].y) - (contour[next].x * contour[i].y);
             signedArea += cross;
             
-            cx += (contour[i].x + contour[next].x) * cross;
-            cy += (contour[i].y + contour[next].y) * cross;
+            centroidX += (contour[i].x + contour[next].x) * cross;
+            centroidY += (contour[i].y + contour[next].y) * cross;
         }
         
         signedArea /= 2f;
         
         // Failsafe for weird shapes
-        if (Mathf.Abs(signedArea) < 0.0001f) return contour[0];
+        if (Mathf.Abs(signedArea) < 0.0001f)
+        {
+            return contour[0];
+        }
         
-        cx /= (6f * signedArea);
-        cy /= (6f * signedArea);
+        centroidX /= (6f * signedArea);
+        centroidY /= (6f * signedArea);
         
-        return new Vector2(cx, cy);
+        return new Vector2(centroidX, centroidY);
     }
 
     /// <summary>
     /// Gets the geometric center and the maximum dimension of the shape's bounding box
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <param name="center">Contour center point</param>
+    /// <param name="maxDimension">Max contour dimension</param>
     private void GetBoundsInfo(List<Vector2> contour, out Vector2 center, out float maxDimension)
     {
-        float minX = float.MaxValue, minY = float.MaxValue;
-        float maxX = float.MinValue, maxY = float.MinValue;
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
 
-        foreach (var p in contour)
+        foreach (var point in contour)
         {
-            if (p.x < minX) minX = p.x;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.y > maxY) maxY = p.y;
+            if (point.x < minX)
+            {
+                minX = point.x;
+            }
+            if (point.x > maxX)
+            {
+                maxX = point.x;
+            }
+            if (point.y < minY)
+            {
+                minY = point.y;
+            }
+            if (point.y > maxY)
+            {
+                maxY = point.y;
+            }
         }
 
         center = new Vector2((minX + maxX) / 2f, (minY + maxY) / 2f);
@@ -207,6 +248,9 @@ public class WeaponAnalyser : MonoBehaviour
     /// <summary>
     /// Counts the number of sharp, convex points (spikes) pointing outwards from the contour
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <param name="maxInnerAngle">Maximum inner angle treated as a spike</param>
+    /// <returns>Computed integer value</returns>
     private int CountSpikes(List<Vector2> contour, float maxInnerAngle)
     {
         int spikes = 0;
@@ -221,21 +265,24 @@ public class WeaponAnalyser : MonoBehaviour
             int next = (i + step) % n;
 
             Vector2 current = contour[i];
-            Vector2 p = contour[prev];
-            Vector2 nx = contour[next];
+            Vector2 point = contour[prev];
+            Vector2 nextPoint = contour[next];
 
-            Vector2 dirIn = current - p;
-            Vector2 dirOut = nx - current;
+            Vector2 dirIn = current - point;
+            Vector2 dirOut = nextPoint - current;
 
-            if (dirIn == Vector2.zero || dirOut == Vector2.zero) continue;
+            if (dirIn == Vector2.zero || dirOut == Vector2.zero)
+            {
+                continue;
+            }
 
             // In a clockwise contour, right turns are convex
             float cross = dirIn.x * dirOut.y - dirIn.y * dirOut.x;
 
             if (cross < 0) // Convex vertex
             {
-                Vector2 toPrev = (p - current).normalized;
-                Vector2 toNext = (nx - current).normalized;
+                Vector2 toPrev = (point - current).normalized;
+                Vector2 toNext = (nextPoint - current).normalized;
 
                 float dot = Mathf.Clamp(Vector2.Dot(toPrev, toNext), -1f, 1f);
                 float innerAngle = Mathf.Acos(dot) * Mathf.Rad2Deg;
@@ -252,8 +299,11 @@ public class WeaponAnalyser : MonoBehaviour
 
     /// <summary>
     /// Finds the longest continuous straight or smooth curve along the perimeter
-    /// Resets when a sharp turn is encountered
     /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <param name="maxTurnAngle">Maximum turn angle to consider smooth</param>
+    /// <param name="totalPerimeter">Total contour perimeter</param>
+    /// <returns>Computed floating-point value</returns>
     private float CalculateMaxSmoothEdgeRatio(List<Vector2> contour, float maxTurnAngle, float totalPerimeter)
     {
         float maxEdgeLength = 0f;
@@ -287,7 +337,7 @@ public class WeaponAnalyser : MonoBehaviour
                         maxEdgeLength = currentEdgeLength;
                     }
 
-                    // Failsafe so perfect circles don't infinitely accumulate
+                    // Stop if significnantly long smooth edge found
                     if (maxEdgeLength >= totalPerimeter) 
                     {
                         return 1f; 

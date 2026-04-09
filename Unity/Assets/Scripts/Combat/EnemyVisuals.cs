@@ -11,7 +11,9 @@ public class EnemyVisuals : MonoBehaviour
         health = GetComponent<EnemyHealth>();
 
         if (targetRenderers == null || targetRenderers.Length == 0)
+        {
             targetRenderers = GetComponentsInChildren<Renderer>();
+        }
     }
 
     private void Start()

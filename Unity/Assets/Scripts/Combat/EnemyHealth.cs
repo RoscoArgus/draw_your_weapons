@@ -17,6 +17,7 @@ public class EnemyHealth : MonoBehaviour
     private float currentHealth;
     private bool isDead;
     private EnemySfxPlayer enemySfxPlayer;
+    private WaveManager waveManager;
 
     public bool IsDead => isDead;
     public float CurrentHealth => currentHealth;
@@ -27,9 +28,26 @@ public class EnemyHealth : MonoBehaviour
         currentHealth = maxHealth;
     }
 
+    /// <summary>
+    /// Assigns the wave manager used for kill notifications
+    /// </summary>
+    /// <param name="manager">Wave manager instance</param>
+    public void SetWaveManager(WaveManager manager)
+    {
+        waveManager = manager;
+    }
+
+    /// <summary>
+    /// Applies weapon-type damage and handles death on zero health
+    /// </summary>
+    /// <param name="weaponAttributes">Weapon attribute profile</param>
+    /// <param name="baseDamage">Base damage before multipliers</param>
     public void TakeHit(WeaponAttributes weaponAttributes, float baseDamage)
     {
-        if (isDead || weaponAttributes == null) return;
+        if (isDead || weaponAttributes == null)
+        {
+            return;
+        }
 
         float slash = weaponAttributes.Slashing;
         float pierce = weaponAttributes.Piercing;
@@ -41,9 +59,13 @@ public class EnemyHealth : MonoBehaviour
         float multiplier;
 
         if (matchedValue > otherAverage)
+        {
             multiplier = Mathf.Lerp(neutralMultiplier, weaknessBonus, matchedValue);
+        }
         else if (matchedValue < otherAverage)
+        {
             multiplier = Mathf.Lerp(resistanceMultiplier, neutralMultiplier, matchedValue);
+        }
         else
             multiplier = neutralMultiplier;
 
@@ -59,12 +81,24 @@ public class EnemyHealth : MonoBehaviour
         }
 
         var mover = GetComponent<EnemyMover>();
-        if (mover != null) mover.TriggerHitAnimation();
+        if (mover != null)
+        {
+            mover.TriggerHitAnimation();
+        }
 
         if (enemySfxPlayer != null)
+        {
             enemySfxPlayer.PlayRandomHitSound();
+        }
     }
 
+    /// <summary>
+    /// Returns the weapon stat that matches current enemy weakness
+    /// </summary>
+    /// <param name="slash">Slash affinity value</param>
+    /// <param name="pierce">Pierce affinity value</param>
+    /// <param name="blunt">Blunt affinity value</param>
+    /// <returns>Computed floating-point value</returns>
     private float GetMatchedTypeValue(float slash, float pierce, float blunt)
     {
         switch (enemyType)
@@ -76,6 +110,13 @@ public class EnemyHealth : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Returns the average of the two non-matching weapon stats.
+    /// </summary>
+    /// <param name="slash">Slash affinity value</param>
+    /// <param name="pierce">Pierce affinity value</param>
+    /// <param name="blunt">Blunt affinity value</param>
+    /// <returns>Computed floating-point value</returns>
     private float GetOtherTypeAverage(float slash, float pierce, float blunt)
     {
         switch (enemyType)
@@ -87,20 +128,29 @@ public class EnemyHealth : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Handles enemy death, notifications, and optional despawn
+    /// </summary>
     private void Die()
     {
-        if (isDead) return;
+        if (isDead)
+        {
+            return;
+        }
         isDead = true;
 
         if (enemySfxPlayer != null)
+        {
             enemySfxPlayer.PlayRandomDeathSound();
-
-        WaveManager waveManager = FindObjectOfType<WaveManager>();
+        }
         if (waveManager != null)
+        {
             waveManager.NotifyEnemyKilled(this);
-
+        }
         if (destroyOnDeath)
+        {
             Destroy(gameObject);
+        }
         else
             gameObject.SetActive(false);
     }

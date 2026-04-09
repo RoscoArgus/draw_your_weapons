@@ -10,6 +10,12 @@ public class MeshExtruder : MonoBehaviour
     public Material weaponMaterial;
     public Material sideMaterial;
 
+    /// <summary>
+    /// Extrudes a 2D contour into a 3D weapon mesh
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <param name="originalTexture">Original texture used to derive UV mapping</param>
+    /// <returns>Generated GameObject</returns>
     public GameObject ExtrudeMesh(List<Vector2> contour, Texture2D originalTexture = null)
     {
         if (contour == null || contour.Count < 3)
@@ -27,20 +33,25 @@ public class MeshExtruder : MonoBehaviour
         int vertexCount = contourPointCount * 6;
 
         Vector3[] vertices = new Vector3[vertexCount];
-        Vector2[] uvs = new Vector2[vertexCount];
+        Vector2[] texCoords = new Vector2[vertexCount];
 
         // Build face and side geometry separately
-        BuildFaceVertices(contour, originalTexture, vertices, uvs, contourPointCount);
-        BuildSideVertices(contour, vertices, uvs, sideBase, contourPointCount);
+        BuildFaceVertices(contour, originalTexture, vertices, texCoords, contourPointCount);
+        BuildSideVertices(contour, vertices, texCoords, sideBase, contourPointCount);
 
         List<int> faceTriangles = BuildFaceTriangles(triangulatedIndices, contourPointCount);
         List<int> sideTriangles = BuildSideTriangles(contourPointCount, sideBase);
 
         // Combine everything into a single mesh with submeshes for different materials
-        Mesh mesh = CreateMesh(vertices, uvs, faceTriangles, sideTriangles);
+        Mesh mesh = CreateMesh(vertices, texCoords, faceTriangles, sideTriangles);
         return CreateMeshObject(mesh, originalTexture);
     }
 
+    /// <summary>
+    /// Triangulates the contour interior
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>Array of triangle indices produced by triangulation</returns>
     private int[] TriangulateContour(List<Vector2> contour)
     {
         int contourPointCount = contour.Count;
@@ -70,7 +81,9 @@ public class MeshExtruder : MonoBehaviour
                 int triangleIndexCount = triangulator.Output.Triangles.Length;
                 int[] triangleIndices = new int[triangleIndexCount];
                 for (int i = 0; i < triangleIndexCount; i++)
+                {
                     triangleIndices[i] = triangulator.Output.Triangles[i];
+                }
 
                 Debug.Log($"Triangle count: {triangleIndexCount / 3}");
                 Debug.Log($"Triangulator status: {triangulator.Output.Status}");
@@ -85,14 +98,22 @@ public class MeshExtruder : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Builds front and back face vertices and texture coordinates from the contour
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <param name="originalTexture">Original texture used to derive UV mapping</param>
+    /// <param name="vertices">Array of vertex positions for the generated mesh</param>
+    /// <param name="texCoords">Array of texture coordinates for the generated mesh</param>
+    /// <param name="contourPointCount">Number of points in the contour</param>
     private void BuildFaceVertices(
         List<Vector2> contour,
         Texture2D originalTexture,
         Vector3[] vertices,
-        Vector2[] uvs,
+        Vector2[] texCoords,
         int contourPointCount)
     {        
-        // De-normalise UVs based on original texture aspect ratio and undo aspect scaling
+        // De-normalize texture coordinates based on original texture aspect ratio and undo aspect scaling
         float aspect = GetTextureAspect(originalTexture);
 
         for (int i = 0; i < contourPointCount; i++)
@@ -103,20 +124,28 @@ public class MeshExtruder : MonoBehaviour
             vertices[i] = new Vector3(x, y, 0f);
             vertices[i + contourPointCount] = new Vector3(x, y, extrudeDepth);
 
-            Vector2 uv = new Vector2(x + 0.5f, (y / aspect) + 0.5f);
-            uvs[i] = uv;
-            uvs[i + contourPointCount] = uv;
+            Vector2 textureCoordinate = new Vector2(x + 0.5f, (y / aspect) + 0.5f);
+            texCoords[i] = textureCoordinate;
+            texCoords[i + contourPointCount] = textureCoordinate;
         }
     }
 
+    /// <summary>
+    /// Builds side-wall quad vertices and perimeter texture coordinates
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <param name="vertices">Array of vertex positions for the generated mesh</param>
+    /// <param name="texCoords">Array of texture coordinates for the generated mesh</param>
+    /// <param name="sideBase">Starting vertex index for side-wall geometry</param>
+    /// <param name="contourPointCount">Number of points in the contour</param>
     private void BuildSideVertices(
         List<Vector2> contour,
         Vector3[] vertices,
-        Vector2[] uvs,
+        Vector2[] texCoords,
         int sideBase,
         int contourPointCount)
     {
-        // Measure each contour edge to unwrap the side UVs along perimeter
+        // Measure each contour edge to unwrap side texture coordinates along the perimeter
         float[] edgeLengths = new float[contourPointCount];
         for (int i = 0; i < contourPointCount; i++)
         {
@@ -125,7 +154,7 @@ public class MeshExtruder : MonoBehaviour
         }
 
         // Give each edge a quad to unwraps side material around the perimeter
-        float uvOffset = 0f;
+        float texCoordOffset = 0f;
         for (int i = 0; i < contourPointCount; i++)
         {
             int next = (i + 1) % contourPointCount;
@@ -140,24 +169,32 @@ public class MeshExtruder : MonoBehaviour
             vertices[vertexIndex + 2] = new Vector3(nextPoint.x, nextPoint.y, extrudeDepth); // Next back
             vertices[vertexIndex + 3] = new Vector3(current.x, current.y, extrudeDepth); // Current back
 
-            float uvStart = uvOffset;
-            float uvEnd = uvOffset + edgeLengths[i];
-            uvs[vertexIndex + 0] = new Vector2(0f, uvStart);
-            uvs[vertexIndex + 1] = new Vector2(0f, uvEnd);
-            uvs[vertexIndex + 2] = new Vector2(1f, uvEnd);
-            uvs[vertexIndex + 3] = new Vector2(1f, uvStart);
+            float texCoordstart = texCoordOffset;
+            float texCoordEnd = texCoordOffset + edgeLengths[i];
+            texCoords[vertexIndex + 0] = new Vector2(0f, texCoordstart);
+            texCoords[vertexIndex + 1] = new Vector2(0f, texCoordEnd);
+            texCoords[vertexIndex + 2] = new Vector2(1f, texCoordEnd);
+            texCoords[vertexIndex + 3] = new Vector2(1f, texCoordstart);
 
-            uvOffset = uvEnd;
+            texCoordOffset = texCoordEnd;
         }
     }
 
+    /// <summary>
+    /// Builds triangle indices for front and back faces
+    /// </summary>
+    /// <param name="triangulatedIndices">Triangle indices produced by triangulation</param>
+    /// <param name="contourPointCount">Number of points in the contour</param>
+    /// <returns>List of triangles</returns>
     private List<int> BuildFaceTriangles(int[] triangulatedIndices, int contourPointCount)
     {
         // Reuse vertex positions for front and back faces, but reverse winding order
         List<int> faceTriangles = new List<int>(triangulatedIndices.Length * 2);
 
         for (int i = 0; i < triangulatedIndices.Length; i++)
+        {
             faceTriangles.Add(triangulatedIndices[i]);
+        }
 
         for (int i = 0; i < triangulatedIndices.Length; i += 3)
         {
@@ -169,6 +206,12 @@ public class MeshExtruder : MonoBehaviour
         return faceTriangles;
     }
 
+    /// <summary>
+    /// Builds triangle indices for side-wall quads
+    /// </summary>
+    /// <param name="contourPointCount">Number of points in the contour</param>
+    /// <param name="sideBase">Starting vertex index for side-wall geometry</param>
+    /// <returns>List of triangles</returns>
     private List<int> BuildSideTriangles(int contourPointCount, int sideBase)
     {
         // Split side quad into two triangles
@@ -190,13 +233,21 @@ public class MeshExtruder : MonoBehaviour
         return sideTriangles;
     }
 
-    private Mesh CreateMesh(Vector3[] vertices, Vector2[] uvs, List<int> faceTriangles, List<int> sideTriangles)
+    /// <summary>
+    /// Creates a two-submesh mesh from vertex, texture-coordinate, and triangle data
+    /// </summary>
+    /// <param name="vertices">Array of vertex positions for the generated mesh</param>
+    /// <param name="texCoords">Array of texture coordinates for the generated mesh</param>
+    /// <param name="faceTriangles">Triangle indices for front and back faces</param>
+    /// <param name="sideTriangles">Triangle indices for side-wall geometry</param>
+    /// <returns>Generated mesh</returns>
+    private Mesh CreateMesh(Vector3[] vertices, Vector2[] texCoords, List<int> faceTriangles, List<int> sideTriangles)
     {
         // Use separate submeshes so the front/back and side walls can use different materials
         Mesh mesh = new Mesh();
         mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         mesh.vertices = vertices;
-        mesh.uv = uvs;
+        mesh.uv = texCoords;
         mesh.subMeshCount = 2;
         mesh.SetTriangles(faceTriangles, 0);
         mesh.SetTriangles(sideTriangles, 1);
@@ -205,12 +256,19 @@ public class MeshExtruder : MonoBehaviour
         return mesh;
     }
 
+    /// <summary>
+    /// Creates a weapon GameObject with mesh, renderer, and collider components
+    /// </summary>
+    /// <param name="mesh">Mesh data</param>
+    /// <param name="originalTexture">Original texture used to derive UV mapping</param>
+    /// <returns>Generated GameObject</returns>
     private GameObject CreateMeshObject(Mesh mesh, Texture2D originalTexture)
     {
         Material faceMaterial = new Material(weaponMaterial);
         if (originalTexture != null)
+        {
             faceMaterial.mainTexture = originalTexture;
-
+        }
         Material edgeMaterial = sideMaterial != null ? new Material(sideMaterial) : faceMaterial;
 
         // Build a self-contained weapon GameObject to use in-scene
@@ -224,11 +282,17 @@ public class MeshExtruder : MonoBehaviour
         return weapon;
     }
 
+    /// <summary>
+    /// Returns the source texture aspect ratio
+    /// </summary>
+    /// <param name="originalTexture">Original texture used to derive UV mapping</param>
+    /// <returns>Computed floating-point value</returns>
     private float GetTextureAspect(Texture2D originalTexture)
     {
         if (originalTexture == null || originalTexture.width == 0)
+        {
             return 1f;
-
+        }
         return (float)originalTexture.height / originalTexture.width;
     }
 }

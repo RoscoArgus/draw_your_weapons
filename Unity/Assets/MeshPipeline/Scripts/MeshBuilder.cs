@@ -28,6 +28,11 @@ public class MeshBuilder : MonoBehaviour
     [Header("Test Input")]
     public Texture2D testTexture;
 
+    /// <summary>
+    /// Builds an interactable weapon mesh from an input texture
+    /// </summary>
+    /// <param name="inputTexture">Source texture used to build the weapon mesh</param>
+    /// <returns>Generated GameObject</returns>
     public GameObject BuildFromTexture(Texture2D inputTexture)
     {
         if (inputTexture == null)
@@ -37,8 +42,9 @@ public class MeshBuilder : MonoBehaviour
         }
 
         if (!HasRequiredComponents())
+        {
             return null;
-
+        }
         Texture2D binary = drawingExtractor.ProcessImage(inputTexture);
         List<Vector2> contour = contourTracer.TraceContour(binary);
         contour = EnsureClockwise(contour);
@@ -60,7 +66,7 @@ public class MeshBuilder : MonoBehaviour
 
         if (extrudedWeapon != null)
         {
-            // Add PendingMeshyUpgrade — stores the texture for when the job is kicked off
+            // Add PendingMeshyUpgrade - stores the texture for when the job is kicked off
             var pendingUpgrade = extrudedWeapon.AddComponent<PendingMeshyUpgrade>();
             pendingUpgrade.Initialise(this, inputTexture);
 
@@ -71,11 +77,19 @@ public class MeshBuilder : MonoBehaviour
         return extrudedWeapon;
     }
 
+    /// <summary>
+    /// Replaces an extruded weapon with a Meshy model
+    /// </summary>
+    /// <param name="extruded">Extruded weapon object</param>
+    /// <param name="meshyModel">Meshy model</param>
     public void UpgradeToMeshyModel(GameObject extruded, GameObject meshyModel)
     {
         SwapToMeshyModel(extruded, meshyModel);
     }
 
+    /// <summary>
+    /// Checks whether Meshy upgrade dependencies and API credentials are available
+    /// </summary>
     private bool CanQueueMeshyUpgrade()
     {
         if (meshyClient == null || meshyCache == null)
@@ -93,21 +107,36 @@ public class MeshBuilder : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Gets the primary texture from a weapon renderer
+    /// </summary>
+    /// <param name="weapon">Weapon object</param>
+    /// <returns>Processed texture</returns>
     private Texture2D GetWeaponTexture(GameObject weapon)
     {
         if (weapon == null)
+        {
             return null;
-
+        }
         var meshRenderer = weapon.GetComponent<MeshRenderer>();
         if (meshRenderer == null || meshRenderer.sharedMaterials == null || meshRenderer.sharedMaterials.Length == 0)
+        {
             return null;
-
+        }
         return meshRenderer.sharedMaterials[0].mainTexture as Texture2D;
     }
 
+    /// <summary>
+    /// Swaps extruded weapon for Meshy model, matching transformations and attributes
+    /// </summary>
+    /// <param name="extruded">Generated placeholder weapon object</param>
+    /// <param name="meshyModel">Meshy model that should replace the placeholder object</param>
     private void SwapToMeshyModel(GameObject extruded, GameObject meshyModel)
     {
-        if (extruded == null || meshyModel == null) return;
+        if (extruded == null || meshyModel == null)
+        {
+            return;
+        }
 
         meshyModel.transform.SetPositionAndRotation(
             extruded.transform.position,
@@ -127,13 +156,13 @@ public class MeshBuilder : MonoBehaviour
             meshyModel.transform.localScale = extruded.transform.localScale;
         }
 
-        var src = extruded.GetComponent<WeaponAttributes>();
-        if (src != null)
+        var sourceAttributes = extruded.GetComponent<WeaponAttributes>();
+        if (sourceAttributes != null)
         {
-            var dst = meshyModel.AddComponent<WeaponAttributes>();
-            dst.Slashing  = src.Slashing;
-            dst.Piercing  = src.Piercing;
-            dst.Bluntness = src.Bluntness;
+            var destinationAttributes = meshyModel.AddComponent<WeaponAttributes>();
+            destinationAttributes.Slashing  = sourceAttributes.Slashing;
+            destinationAttributes.Piercing  = sourceAttributes.Piercing;
+            destinationAttributes.Bluntness = sourceAttributes.Bluntness;
         }
 
         meshyModel.SetActive(true);
@@ -143,6 +172,11 @@ public class MeshBuilder : MonoBehaviour
         MakeInteractable(meshyModel);
     }
 
+    /// <summary>
+    /// Returns the largest renderer bounds dimension for a model
+    /// </summary>
+    /// <param name="model">Model</param>
+    /// <returns>Computed floating-point value</returns>
     private float GetModelHeight(GameObject model)
     {
         Bounds bounds = new Bounds();
@@ -172,12 +206,20 @@ public class MeshBuilder : MonoBehaviour
     }
 
     [ContextMenu("Test Build")]
+    /// <summary>
+    /// Builds a weapon from the assigned test texture
+    /// </summary>
     private void TestBuild()
     {
         if (testTexture != null)
+        {
             BuildFromTexture(testTexture);
+        }
     }
 
+    /// <summary>
+    /// Verifies that all necessary pipeline component references are assigned
+    /// </summary>
     private bool HasRequiredComponents()
     {
         if (drawingExtractor == null || contourTracer == null || meshExtruder == null || weaponAnalyser == null)
@@ -188,15 +230,29 @@ public class MeshBuilder : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Ensures contour winding is clockwise before extrusion
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>List of contour points</returns>
     private List<Vector2> EnsureClockwise(List<Vector2> contour)
     {
         if (contour == null || contour.Count < 3)
+        {
             return contour;
+        }
         if (CalculateSignedArea(contour) > 0f)
+        {
             contour.Reverse();
+        }
         return contour;
     }
 
+    /// <summary>
+    /// Calculates the contour signed
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>Computed floating-point value</returns>
     private float CalculateSignedArea(List<Vector2> contour)
     {
         float signedArea = 0f;
@@ -209,11 +265,17 @@ public class MeshBuilder : MonoBehaviour
         return signedArea;
     }
 
+    /// <summary>
+    /// Removes intersecting contour segments by trimming loops
+    /// </summary>
+    /// <param name="contour">Ordered contour points</param>
+    /// <returns>List of contour points</returns>
     private List<Vector2> RemoveSelfIntersections(List<Vector2> contour)
     {
         if (contour == null || contour.Count < 4)
+        {
             return contour;
-
+        }
         bool changed = true;
         int remainingPasses = 10;
         while (changed && remainingPasses-- > 0)
@@ -224,21 +286,26 @@ public class MeshBuilder : MonoBehaviour
                 for (int j = i + 2; j < contour.Count; j++)
                 {
                     if (i == 0 && j == contour.Count - 1)
+                    {
                         continue;
-
+                    }
                     Vector2 a1 = contour[i];
                     Vector2 a2 = contour[(i + 1) % contour.Count];
                     Vector2 b1 = contour[j];
                     Vector2 b2 = contour[(j + 1) % contour.Count];
 
                     if (!EdgesIntersect(a1, a2, b1, b2))
+                    {
                         continue;
+                    }
                     contour.RemoveRange(i + 1, j - i);
                     changed = true;
                     break;
                 }
                 if (changed)
+                {
                     break;
+                }
             }
         }
 
@@ -246,6 +313,14 @@ public class MeshBuilder : MonoBehaviour
         return contour;
     }
 
+    /// <summary>
+    /// Checks if two line segments intersect
+    /// </summary>
+    /// <param name="a1">Start point of the first edge segment</param>
+    /// <param name="a2">End point of the first edge segment</param>
+    /// <param name="b1">Start point of the second edge segment</param>
+    /// <param name="b2">End point of the second edge segment</param>
+    /// <returns>True when two lines intersect, false otherwise</returns>
     private bool EdgesIntersect(Vector2 a1, Vector2 a2, Vector2 b1, Vector2 b2)
     {
         float d1x = a2.x - a1.x;
@@ -254,18 +329,30 @@ public class MeshBuilder : MonoBehaviour
         float d2y = b2.y - b1.y;
         float cross = d1x * d2y - d1y * d2x;
         if (Mathf.Abs(cross) < 1e-10f)
+        {
             return false;
+        }
         float t = ((b1.x - a1.x) * d2y - (b1.y - a1.y) * d2x) / cross;
         float u = ((b1.x - a1.x) * d1y - (b1.y - a1.y) * d1x) / cross;
         return t > 0.001f && t < 0.999f && u > 0.001f && u < 0.999f;
     }
 
-    private void MakeInteractable(GameObject obj)
+    /// <summary>
+    /// Adds interaction, collider, and damage components to a generated weapon
+    /// </summary>
+    /// <param name="gameObject">GameObject to be configured</param>
+    private void MakeInteractable(GameObject gameObject)
     {
         Mesh mesh = null;
-        var filter = obj.GetComponent<MeshFilter>();
-        if (filter == null) filter = obj.GetComponentInChildren<MeshFilter>();
-        if (filter != null) mesh = filter.sharedMesh;
+        var filter = gameObject.GetComponent<MeshFilter>();
+        if (filter == null)
+        {
+            filter = gameObject.GetComponentInChildren<MeshFilter>();
+        }
+        if (filter != null)
+        {
+            mesh = filter.sharedMesh;
+        }
 
         if (mesh == null)
         {
@@ -273,29 +360,56 @@ public class MeshBuilder : MonoBehaviour
             return;
         }
 
-        var interaction = obj.AddComponent<MeshInteraction>();
+        var interaction = gameObject.GetComponent<MeshInteraction>();
+        if (interaction == null)
+        {
+            interaction = gameObject.AddComponent<MeshInteraction>();
+        }
         interaction.swingClip = swingClip;
         interaction.audioSource = sceneAudioSource;
         interaction.Initialise(mesh);
 
-        var hitCollider = obj.AddComponent<MeshCollider>();
+        MeshCollider hitCollider = null;
+        MeshCollider[] meshColliders = gameObject.GetComponents<MeshCollider>();
+        for (int index = 0; index < meshColliders.Length; index++)
+        {
+            MeshCollider meshCollider = meshColliders[index];
+            if (meshCollider != null && meshCollider.isTrigger)
+            {
+                hitCollider = meshCollider;
+                break;
+            }
+        }
+        if (hitCollider == null)
+        {
+            hitCollider = gameObject.AddComponent<MeshCollider>();
+        }
         hitCollider.sharedMesh = mesh;
         hitCollider.convex = true;
         hitCollider.isTrigger = true;
 
-        obj.AddComponent<WeaponDamageDealer>();
+        if (gameObject.GetComponent<WeaponDamageDealer>() == null)
+        {
+            gameObject.AddComponent<WeaponDamageDealer>();
+        }
     }
 
+    /// <summary>
+    /// Places the weapon in front of the view transform
+    /// </summary>
+    /// <param name="weapon">Weapon object</param>
     private void PlaceInFrontOfView(GameObject weapon)
     {
         if (weapon == null)
+        {
             return;
-
+        }
         Transform view = ResolveSpawnViewTransform();
         Vector3 forward = view.forward;
         if (forward.sqrMagnitude < 0.0001f)
+        {
             forward = Vector3.forward;
-
+        }
         float distance = Mathf.Max(0.1f, spawnDistance);
         Vector3 position = view.position + forward.normalized * distance + view.up * spawnVerticalOffset;
         Quaternion rotation = Quaternion.LookRotation(forward.normalized, view.up);
@@ -303,14 +417,19 @@ public class MeshBuilder : MonoBehaviour
         weapon.transform.SetPositionAndRotation(position, rotation);
     }
 
+    /// <summary>
+    /// Resolves the spawn view from an explicit transform, main camera, or this object
+    /// </summary>
     private Transform ResolveSpawnViewTransform()
     {
         if (spawnViewTransform != null)
+        {
             return spawnViewTransform;
-
+        }
         if (Camera.main != null)
+        {
             return Camera.main.transform;
-
+        }
         return transform;
     }
 }

@@ -7,6 +7,20 @@ public class EnemySpawner : MonoBehaviour
     public GameObject[] enemyPrefabs;
     public Transform[] spawnPoints;
 
+    private WaveManager waveManager;
+
+    /// <summary>
+    /// Assigns the wave manager for spawned enemy callbacks
+    /// </summary>
+    /// <param name="manager">Wave manager instance</param>
+    public void SetWaveManager(WaveManager manager)
+    {
+        waveManager = manager;
+    }
+
+    /// <summary>
+    /// Spawns a random enemy at a random spawn point and links it to the player target
+    /// </summary>
     public EnemyHealth SpawnEnemy()
     {
         if (playerTarget == null)
@@ -28,14 +42,23 @@ public class EnemySpawner : MonoBehaviour
         }
 
         Transform chosenSpawn = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        GameObject chosenEnemyPrefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
-
-        GameObject enemyObj = Instantiate(chosenEnemyPrefab, chosenSpawn.position, chosenSpawn.rotation);
+        GameObject enemyObj = Instantiate(
+            enemyPrefabs[Random.Range(0, enemyPrefabs.Length)],
+            chosenSpawn.position,
+            chosenSpawn.rotation);
 
         EnemyMover mover = enemyObj.GetComponent<EnemyMover>();
         if (mover != null)
+        {
             mover.target = playerTarget;
+        }
 
-        return enemyObj.GetComponent<EnemyHealth>();
+        EnemyHealth enemyHealth = enemyObj.GetComponent<EnemyHealth>();
+        if (enemyHealth != null && waveManager != null)
+        {
+            enemyHealth.SetWaveManager(waveManager);
+        }
+
+        return enemyHealth;
     }
 }

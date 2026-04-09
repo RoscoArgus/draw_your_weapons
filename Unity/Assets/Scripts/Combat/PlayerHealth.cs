@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
@@ -9,6 +10,8 @@ public class PlayerHealth : MonoBehaviour
     private float currentHealth;
     private bool isDead;
 
+    public event Action<float, float> OnHealthChanged;
+
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
     public bool IsDead => isDead;
@@ -17,51 +20,90 @@ public class PlayerHealth : MonoBehaviour
     private void Awake()
     {
         currentHealth = maxHealth;
+        NotifyHealthChanged();
     }
 
+    /// <summary>
+    /// Reduces player health and triggers death when it reaches zero
+    /// </summary>
+    /// <param name="amount">Damage value</param>
     public void TakeDamage(float amount)
     {
-        if (isDead) return;
-        if (amount <= 0f) return;
+        if (isDead)
+        {
+            return;
+        }
+        if (amount <= 0f)
+        {
+            return;
+        }
 
         currentHealth -= amount;
         currentHealth = Mathf.Max(currentHealth, 0f);
+        NotifyHealthChanged();
 
         if (debugLogs)
+        {
             Debug.Log($"Player took {amount:F1} damage. HP: {currentHealth:F1}/{maxHealth:F1}");
-
+        }
         if (currentHealth <= 0f)
         {
             Die();
         }
     }
 
+    /// <summary>
+    /// Increases player health by provided amount up to a maximum value
+    /// </summary>
+    /// <param name="amount">Health value</param>
     public void Heal(float amount)
     {
-        if (isDead) return;
-        if (amount <= 0f) return;
+        if (isDead)
+        {
+            return;
+        }
+        if (amount <= 0f)
+        {
+            return;
+        }
 
         currentHealth += amount;
         currentHealth = Mathf.Min(currentHealth, maxHealth);
+        NotifyHealthChanged();
     }
 
+    /// <summary>
+    /// Resets death state and restores full health
+    /// </summary>
     public void ResetHealth()
     {
         isDead = false;
         currentHealth = maxHealth;
+        NotifyHealthChanged();
     }
 
+    /// <summary>
+    /// Marks the player as dead and logs the event
+    /// </summary>
     private void Die()
     {
-        if (isDead) return;
+        if (isDead)
+        {
+            return;
+        }
         isDead = true;
 
         if (debugLogs)
+        {
             Debug.Log("Player died.");
+        }
+    }
 
-        // Later:
-        // - show game over UI
-        // - stop waves
-        // - restart scene
+    /// <summary>
+    /// Broadcasts current and max health values to listeners
+    /// </summary>
+    private void NotifyHealthChanged()
+    {
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }
 }

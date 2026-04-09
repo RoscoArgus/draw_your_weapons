@@ -22,25 +22,44 @@ public class EnemySfxPlayer : MonoBehaviour
     private void Awake()
     {
         if (sourceTemplate == null)
+        {
             sourceTemplate = GetComponent<AudioSource>();
+        }
     }
 
+    /// <summary>
+    /// Plays a random hit clip with a varied pitch
+    /// </summary>
     public void PlayRandomHitSound()
     {
         PlayRandomFromPool(hitClips, hitVolume);
     }
 
+    /// <summary>
+    /// Plays a random death clip with a varied pitch
+    /// </summary>
     public void PlayRandomDeathSound()
     {
         PlayRandomFromPool(deathClips, deathVolume);
     }
 
+    /// <summary>
+    /// Plays a random clip from a pool of audio clips (with varied pitch)
+    /// </summary>
+    /// <param name="clipPool">Audio clips for playback</param>
+    /// <param name="volume">Playback volume multiplier</param>
     private void PlayRandomFromPool(AudioClip[] clipPool, float volume)
     {
-        if (clipPool == null || clipPool.Length == 0) return;
+        if (clipPool == null || clipPool.Length == 0)
+        {
+            return;
+        }
 
         AudioClip clip = clipPool[Random.Range(0, clipPool.Length)];
-        if (clip == null) return;
+        if (clip == null)
+        {
+            return;
+        }
 
         float minPitch = Mathf.Min(pitchRange.x, pitchRange.y);
         float maxPitch = Mathf.Max(pitchRange.x, pitchRange.y);
@@ -49,6 +68,12 @@ public class EnemySfxPlayer : MonoBehaviour
         PlayOneShotAtPosition(clip, pitch, Mathf.Clamp01(volume));
     }
 
+    /// <summary>
+    /// Plays a clip at enemy position
+    /// </summary>
+    /// <param name="clip">Audio clip</param>
+    /// <param name="pitch">Playback pitch multiplier</param>
+    /// <param name="volume">Playback volume multiplier</param>
     private void PlayOneShotAtPosition(AudioClip clip, float pitch, float volume)
     {
         GameObject tempAudioObject = new GameObject("EnemySfxOneShot");
@@ -66,6 +91,10 @@ public class EnemySfxPlayer : MonoBehaviour
         Destroy(tempAudioObject, clipDuration + 0.05f);
     }
 
+    /// <summary>
+    /// Copies audio settings from the template source
+    /// </summary>
+    /// <param name="target">Audio source</param>
     private void ApplyTemplateSettings(AudioSource target)
     {
         if (sourceTemplate == null)

@@ -52,7 +52,9 @@ public class EnemyMover : MonoBehaviour
         _swayOffset = Random.Range(0f, Mathf.PI * 2f);
     }
 
-    // Call this from EnemyHealth when hit
+    /// <summary>
+    /// Starts the enemy hit-reaction animation
+    /// </summary>
     public void TriggerHitAnimation()
     {
         _hitRotation = hitRotationAmount;
@@ -61,8 +63,14 @@ public class EnemyMover : MonoBehaviour
 
     private void Update()
     {
-        if (target == null) return;
-        if (_health != null && _health.IsDead) return;
+        if (target == null)
+        {
+            return;
+        }
+        if (_health != null && _health.IsDead)
+        {
+            return;
+        }
 
         Vector3 direction = target.position - transform.position;
         direction.y = 0f;
@@ -73,18 +81,28 @@ public class EnemyMover : MonoBehaviour
         _isMoving = distance > stopDistance && !IsPathBlocked(moveDir);
 
         if (_isMoving)
+        {
             transform.position += moveDir * moveSpeed * Time.deltaTime;
-
+        }
         // Separation
         Collider[] nearby = Physics.OverlapSphere(transform.position, separationRadius);
         foreach (var col in nearby)
         {
-            if (col.gameObject == gameObject) continue;
-            if (col.GetComponent<EnemyHealth>() == null) continue;
+            if (col.gameObject == gameObject)
+            {
+                continue;
+            }
+            if (col.GetComponent<EnemyHealth>() == null)
+            {
+                continue;
+            }
 
             Vector3 away = transform.position - col.transform.position;
             away.y = 0f;
-            if (away.sqrMagnitude < 0.001f) continue;
+            if (away.sqrMagnitude < 0.001f)
+            {
+                continue;
+            }
             transform.position += away.normalized * separationStrength * Time.deltaTime;
         }
 
@@ -132,6 +150,11 @@ public class EnemyMover : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Checks if the enemy path is blocked by another enemy
+    /// </summary>
+    /// <param name="moveDir">Normalized movement direction</param>
+    /// <returns>True if path is blocked, false otherwise</returns>
     private bool IsPathBlocked(Vector3 moveDir)
     {
         // Use layermask or ignore own collider via SphereCast with offset
@@ -141,7 +164,10 @@ public class EnemyMover : MonoBehaviour
         {
             if (hit.collider.GetComponent<EnemyHealth>() != null &&
                 hit.collider.gameObject != gameObject)
+
+            {
                 return true;
+            }
         }
         return false;
     }
